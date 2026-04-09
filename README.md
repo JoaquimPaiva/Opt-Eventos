@@ -1,53 +1,121 @@
 # OptEventos
 
-Plataforma de reservas de hotel para eventos, com foco em fluxo simples para cliente e gestão operacional completa para equipa/admin.
+Plataforma web de reservas de hotel para eventos, construída para ligar três perfis de utilizador num único fluxo:
 
-## Stack Tecnológica
+- Cliente: escolhe evento, hotel e regime, cria reserva e efetua pagamento.
+- Hotel: acompanha reservas associadas ao seu hotel e gere equipa interna do hotel.
+- Admin: opera catálogo, pagamentos, relatórios, utilizadores e controlo global do negócio.
+
+O projeto segue arquitetura Laravel + Inertia + React, com foco em produtividade de desenvolvimento, UX moderna e base sólida para evolução em produção.
+
+## Principais objetivos do produto
+
+- Centralizar reservas de alojamento orientadas a eventos.
+- Reduzir fricção do checkout para o cliente.
+- Dar visibilidade operacional a hotéis e admins em tempo real.
+- Integrar pagamentos com Stripe e ciclo de notificações completo.
+- Permitir escala funcional sem separar API e frontend em aplicações distintas.
+
+## Stack tecnológica
 
 - Backend: Laravel 12 (PHP 8.2+)
 - Frontend: Inertia.js + React + TypeScript
 - UI: Tailwind CSS
-- Build: Vite
-- Pagamentos: Stripe (modo teste e webhook)
-- Notificações: In-app (DB) + Email (Laravel Notifications)
+- Bundler: Vite
 - Base de dados:
-- Local (por defeito neste projeto): SQLite
-- Produção recomendada: PostgreSQL
+  - Desenvolvimento: SQLite
+  - Produção: MySQL ou PostgreSQL
+- Pagamentos: Stripe (Payment Intents + Webhooks)
+- Notificações:
+  - In-app (database notifications)
+  - Email (Laravel Notifications)
+  - Browser Push (Web Push API + Service Worker)
 
-## O que o projeto já inclui
+## Funcionalidades implementadas
 
-- Landing page (`/`) com seletor de disponibilidade e visual de hotel.
-- Checkout (`/checkout`) com seleção por passos:
-- Evento
-- Hotel desse evento
-- Regime/refeição
-- Datas e hóspedes
-- Preparação de intenção de pagamento antes de criar booking.
-- Área de cliente:
-- Lista de reservas
-- Detalhe da reserva
-- Pagamento da reserva
-- Cancelamento e eliminação (regras de elegibilidade)
-- Área admin:
-- Dashboard
-- Gestão de utilizadores (roles)
-- Gestão de eventos, hotéis e tarifas
-- Gestão de bookings, pagamentos e supplier payments
-- Relatórios + export CSV
-- Upload de imagens de hotéis (galeria), com preview e consumo no frontend.
-- Sistema de notificações:
-- Booking criado
-- Pagamento confirmado
-- Booking cancelado
-- Alerta para admin em confirmação de booking pago
+### Website público
 
-## Estrutura de módulos (rotas principais)
+- Landing page com proposta de valor, conteúdo comercial e acesso rápido ao checkout.
+- Bloco de seleção de disponibilidade diretamente na página inicial.
+- Galeria de imagens de hotel com melhor experiência visual.
 
-- Público:
+### Checkout e reservas (cliente)
+
+- Fluxo guiado por etapas:
+  - Selecionar evento
+  - Selecionar hotel do evento
+  - Selecionar regime
+  - Selecionar datas e número de hóspedes
+- Validações de janela de reserva, disponibilidade e capacidade de quarto.
+- Criação de Payment Intent antes da confirmação da reserva.
+- Criação de booking e pagamento associado.
+- Página de pagamento da reserva com sincronização de estado.
+
+### Área do cliente
+
+- Dashboard com resumo e acesso rápido.
+- Lista e detalhe de reservas.
+- Cancelamento de reservas (com regras de elegibilidade).
+- Eliminação de reservas canceladas ou expiradas (fluxo de limpeza de histórico).
+
+### Área admin
+
+- Dashboard administrativo.
+- Gestão de utilizadores e roles (`ADMIN`, `CLIENT`, `HOTEL`).
+- Gestão de eventos.
+- Gestão de hotéis e galeria de imagens.
+- Gestão de tarifas (room type, meal plan, preço, stock, ativação).
+- Gestão de bookings e respetivos estados.
+- Gestão de pagamentos de cliente e pagamentos a fornecedor.
+- Relatórios com exportação para CSV.
+
+### Área hotel
+
+- Acesso apenas às reservas do hotel associado.
+- Gestão de equipa do hotel (criar/editar/remover utilizadores `HOTEL` do mesmo hotel).
+- Restrição de acesso por contexto para evitar fuga de dados entre hotéis.
+
+### Notificações e comunicação
+
+- Notificações in-app para cliente, admin e hotel.
+- Emails automáticos para eventos chave:
+  - Reserva criada
+  - Pagamento confirmado
+  - Reserva cancelada
+  - Alertas administrativos de reserva paga
+- Push web para perfis elegíveis (admin/hotel), com gestão de subscrições por browser.
+
+## Fluxo de negócio (resumo)
+
+1. Cliente escolhe evento e oferta de hotel.
+2. Sistema valida disponibilidade e cria intent de pagamento.
+3. Cliente conclui checkout.
+4. Booking é criado com registos financeiros associados:
+   - `payments` (cliente)
+   - `supplier_payments` (fornecedor/hotel)
+5. Notificações são emitidas para os atores relevantes.
+6. Webhook Stripe atualiza estado de pagamento (`PAID`, etc.).
+
+## Perfis e permissões
+
+- `ADMIN`
+  - Gestão total de catálogo, utilizadores, reservas, pagamentos e relatórios.
+- `HOTEL`
+  - Visibilidade limitada ao próprio hotel.
+  - Gestão da equipa do hotel.
+- `CLIENT`
+  - Gestão das próprias reservas e pagamentos.
+
+## Estrutura de rotas (alto nível)
+
+### Públicas
+
 - `GET /`
-- `POST /webhooks/payments`
 - `POST /webhooks/stripe`
-- Cliente autenticado:
+- `POST /webhooks/payments`
+
+### Cliente autenticado
+
 - `GET /checkout`
 - `POST /checkout/payment-intent`
 - `POST /checkout`
@@ -60,9 +128,17 @@ Plataforma de reservas de hotel para eventos, com foco em fluxo simples para cli
 - `POST /dashboard/bookings/{booking}/payment/confirm`
 - `POST /dashboard/bookings/{booking}/cancel`
 - `DELETE /dashboard/bookings/{booking}`
-- `POST /notifications/{notification}/read`
-- `POST /notifications/read-all`
-- Admin:
+
+### Hotel autenticado
+
+- `GET /hotel/bookings`
+- `GET /hotel/users`
+- `POST /hotel/users`
+- `PATCH /hotel/users/{user}`
+- `DELETE /hotel/users/{user}`
+
+### Admin autenticado
+
 - `/admin`
 - `/admin/users`
 - `/admin/events`
@@ -73,7 +149,16 @@ Plataforma de reservas de hotel para eventos, com foco em fluxo simples para cli
 - `/admin/supplier-payments`
 - `/admin/reports`
 
-## Setup Local
+## Instalação local
+
+### Requisitos
+
+- PHP 8.2+
+- Composer 2+
+- Node.js 20+ e npm
+- Extensões PHP recomendadas: `pdo`, `mbstring`, `openssl`, `json`, `fileinfo`, `bcmath`, `gmp`
+
+### Setup inicial
 
 ```bash
 cd app
@@ -84,9 +169,10 @@ php artisan key:generate
 touch database/database.sqlite
 php artisan migrate --seed
 php artisan storage:link
+php artisan optimize:clear
 ```
 
-## Arranque em desenvolvimento
+### Executar em desenvolvimento
 
 Terminal 1:
 
@@ -102,86 +188,130 @@ cd app
 npm run dev
 ```
 
-Abrir: `http://127.0.0.1:8000`
+Aplicação: `http://127.0.0.1:8000`
 
-## Credenciais seed (ambiente local)
+## Credenciais seed (local)
 
-- Admin:
-- Email: `admin@opteventos.test`
-- Password: `password`
-- Cliente teste:
-- Email: `client@opteventos.test`
-- Password: `password`
+- Admin
+  - Email: `admin@opteventos.test`
+  - Password: `password`
+- Cliente
+  - Email: `client@opteventos.test`
+  - Password: `password`
 
-## Configuração de Pagamentos (Stripe)
+## Configuração de pagamentos (Stripe)
 
-No `.env`:
+Adicionar no `.env`:
 
 ```env
 PAYMENT_PROVIDER=STRIPE
-STRIPE_SECRET_KEY=sk_test_...
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_SECRET_KEY=sk_test_xxx
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
 
-Webhook local:
+Escutar webhooks localmente:
 
 ```bash
 stripe listen --forward-to http://127.0.0.1:8000/webhooks/stripe
 ```
 
-## Configuração de Email
+## Configuração de email (SMTP real)
 
-Exemplo com Gmail SMTP:
+Exemplo Gmail:
 
 ```env
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
-MAIL_SCHEME=smtp
+MAIL_ENCRYPTION=tls
 MAIL_USERNAME=teu_email@gmail.com
-MAIL_PASSWORD="app_password_gmail"
+MAIL_PASSWORD="app_password"
 MAIL_FROM_ADDRESS=teu_email@gmail.com
 MAIL_FROM_NAME="OptEventos"
 ```
 
-Depois de alterar `.env`:
+Aplicar alterações:
 
 ```bash
 cd app
 php artisan optimize:clear
 ```
 
-## Testes e validação
+Importante:
+
+- O utilizador admin precisa de email real na tabela `users` para receber notificações por email.
+- Em produção, evitar emails de teste/fake para contas operacionais.
+
+## Configuração de push web
+
+### 1) Gerar chaves VAPID
+
+```bash
+cd app
+php artisan webpush:vapid
+```
+
+### 2) Guardar no `.env`
+
+```env
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:teu_email@dominio.com
+```
+
+### 3) Migrar base de dados
+
+```bash
+cd app
+php artisan migrate
+```
+
+### 4) Verificar HTTPS
+
+Push real exige contexto seguro:
+
+- `https://...` em produção
+- exceção local `http://localhost` / `http://127.0.0.1`
+
+## Testes e qualidade
+
+Executar backend tests:
 
 ```bash
 cd app
 php artisan test
+```
+
+Validar build frontend:
+
+```bash
+cd app
 npm run build
 ```
 
-## Reset da base de dados
+## Operações úteis
 
-Com seed:
+Reset completo da base:
 
 ```bash
 cd app
 php artisan migrate:fresh --seed --force
 ```
 
-Sem seed:
+Limpar cache/config:
 
 ```bash
 cd app
-php artisan migrate:fresh --force
+php artisan optimize:clear
 ```
 
-## Deploy (resumo)
+## Deploy em produção (guia curto)
 
-Não basta publicar `public/build`.  
-Em Laravel, é necessário publicar o projeto completo e apontar o web server para `app/public`.
+Não basta copiar `public/build`.  
+Para Laravel funcionar corretamente, é necessário publicar o projeto completo.
 
-Passos base de produção:
+### Passos recomendados
 
 ```bash
 cd app
@@ -193,34 +323,59 @@ php artisan storage:link
 php artisan optimize
 ```
 
-Checklist de produção:
+### Checklist mínima de produção
 
 - `APP_ENV=production`
 - `APP_DEBUG=false`
 - `APP_URL=https://teu-dominio`
-- `TRUSTED_PROXIES=*` (se estiver atrás de proxy/túnel/load balancer)
-- DB e SMTP configurados
-- Chaves Stripe de produção (quando aplicável)
+- `DB_CONNECTION` e credenciais corretas
+- SMTP funcional
+- Stripe live/test conforme ambiente
+- Webhook Stripe apontado para domínio correto
+- HTTPS ativo (obrigatório para push real)
 
-## Troubleshooting rápido
+## Segurança e boas práticas
 
-- Imagens de hotel não aparecem:
-- Confirma `php artisan storage:link`
-- Confirma ficheiros em `storage/app/public/hotels`
-- Limpa cache: `php artisan optimize:clear`
-- Página branca/erros no túnel ngrok:
-- Normalmente é mixed content (`http` dentro de `https`)
-- Verifica `APP_URL=https://...` e `TRUSTED_PROXIES=*`
-- Stripe atualiza no dashboard mas não no projeto:
-- Confirmar CLI webhook ativo (`stripe listen`)
-- Confirmar `STRIPE_WEBHOOK_SECRET` no `.env`
+- Nunca versionar `.env` com segredos.
+- Rotacionar chaves/senhas sempre que expostas.
+- Remover scripts temporários de manutenção em produção (`artisan-run.php`, `db-test.php`) após uso.
+- Garantir permissões de ficheiros corretas em `storage/` e `bootstrap/cache/`.
+- Usar contas distintas por role e princípio de menor privilégio.
 
-## Nota de arquitetura
+## Troubleshooting
 
-O projeto foi pensado para escalar com separação clara:
+### Imagens de hotel não aparecem
 
-- Domínio de reservas (bookings/rates/events/hotels)
-- Domínio financeiro (payments/supplier_payments)
-- Domínio operacional (admin/reporting/notificações)
+- Verificar `php artisan storage:link`
+- Confirmar ficheiros em `storage/app/public/hotels`
+- Limpar cache (`php artisan optimize:clear`)
 
-Base sólida para evolução para multi-tenant, integrações externas e automações de backoffice.
+### Página branca em túnel (ngrok/cloudflare)
+
+- Normalmente é mixed content/CORS com assets de dev (`:5173`)
+- Em partilha externa usar build de produção (`npm run build`)
+- Confirmar `APP_URL=https://...`
+
+### Stripe confirma no dashboard mas app não atualiza
+
+- Confirmar webhook ativo e endpoint correto
+- Confirmar `STRIPE_WEBHOOK_SECRET`
+- Verificar `storage/logs/laravel.log`
+
+### Erro 419 em mobile/iOS
+
+- Confirmar domínio/protocolo consistentes (http vs https)
+- Confirmar sessão/cookies (`APP_URL`, same-site, proxy)
+- Limpar cache da aplicação
+
+## Roadmap sugerido
+
+- Backoffice com métricas avançadas e dashboards financeiros.
+- Hardening de segurança (2FA, rate-limiting avançado, auditoria reforçada).
+- Modo multi-tenant para múltiplos operadores.
+- Integrações de faturação e ERP.
+- Testes E2E para fluxos críticos (checkout, pagamento, notificações).
+
+## Licença
+
+Projeto privado. Definir licença comercial antes de distribuição pública.
