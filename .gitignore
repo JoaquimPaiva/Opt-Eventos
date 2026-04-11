@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 *.log
 .DS_Store
 .env
@@ -22,3 +23,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+=======
+*.sqlite*
+>>>>>>> b2fe3f6 (feat: app login com firebase e onboarding)
