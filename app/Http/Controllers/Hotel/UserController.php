@@ -18,7 +18,7 @@ class UserController extends Controller
     {
         $hotelId = $request->user()?->hotel_id;
         if ($hotelId === null) {
-            abort(403, 'Hotel account is not linked to a hotel.');
+            abort(403, 'A conta de hotel não está associada a nenhum hotel.');
         }
 
         $users = User::query()
@@ -44,7 +44,7 @@ class UserController extends Controller
     {
         $hotelId = $request->user()?->hotel_id;
         if ($hotelId === null) {
-            abort(403, 'Hotel account is not linked to a hotel.');
+            abort(403, 'A conta de hotel não está associada a nenhum hotel.');
         }
 
         $validated = $request->validated();
@@ -64,11 +64,11 @@ class UserController extends Controller
     {
         $hotelId = $request->user()?->hotel_id;
         if ($hotelId === null) {
-            abort(403, 'Hotel account is not linked to a hotel.');
+            abort(403, 'A conta de hotel não está associada a nenhum hotel.');
         }
 
         if ($user->role !== 'HOTEL' || (int) $user->hotel_id !== (int) $hotelId) {
-            abort(403, 'You can only manage users from your own hotel.');
+            abort(403, 'Só podes gerir utilizadores associados ao teu hotel.');
         }
 
         $validated = $request->validated();
@@ -90,11 +90,11 @@ class UserController extends Controller
     {
         $hotelId = $request->user()?->hotel_id;
         if ($hotelId === null) {
-            abort(403, 'Hotel account is not linked to a hotel.');
+            abort(403, 'A conta de hotel não está associada a nenhum hotel.');
         }
 
         if ($user->role !== 'HOTEL' || (int) $user->hotel_id !== (int) $hotelId) {
-            abort(403, 'You can only manage users from your own hotel.');
+            abort(403, 'Só podes gerir utilizadores associados ao teu hotel.');
         }
 
         if ((int) $request->user()?->id === (int) $user->id) {

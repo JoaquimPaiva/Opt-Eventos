@@ -28,6 +28,9 @@ interface RatePayload {
     sale_price: string;
     currency: string;
     stock: number;
+    cancellation_policy: string;
+    deposit_amount: string | null;
+    balance_due_days_before_checkin: string | null;
     cancellation_deadline: string;
     is_active: boolean;
 }
@@ -48,6 +51,9 @@ export default function RateEdit({ hotels, room_types, meal_plans, rate }: RateE
         sale_price: rate.sale_price,
         currency: rate.currency,
         stock: rate.stock.toString(),
+        cancellation_policy: rate.cancellation_policy,
+        deposit_amount: rate.deposit_amount ?? '',
+        balance_due_days_before_checkin: rate.balance_due_days_before_checkin ?? '',
         cancellation_deadline: rate.cancellation_deadline,
         is_active: rate.is_active,
     });

@@ -37,6 +37,24 @@ class HotelBookingAccessTest extends TestCase
             );
     }
 
+    public function test_hotel_user_can_access_hotel_dashboard(): void
+    {
+        $hotel = Hotel::factory()->create(['event_id' => Event::factory()->create()->id]);
+        $hotelUser = User::factory()->create([
+            'role' => 'HOTEL',
+            'hotel_id' => $hotel->id,
+        ]);
+
+        $this->actingAs($hotelUser)
+            ->get(route('hotel.dashboard'))
+            ->assertOk()
+            ->assertInertia(
+                fn ($page) => $page
+                    ->component('Hotel/Dashboard')
+                    ->where('hotel.id', $hotel->id)
+            );
+    }
+
     public function test_hotel_user_only_sees_bookings_from_its_hotel(): void
     {
         $event = Event::factory()->create();

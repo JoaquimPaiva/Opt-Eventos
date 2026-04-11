@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateBookingStatusRequest;
 use App\Models\Booking;
+use App\Models\Rate;
 use App\Services\Audit\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,6 +53,8 @@ class BookingController extends Controller
                 'id' => $booking->id,
                 'customer_name' => $booking->user->name,
                 'customer_email' => $booking->user->email,
+                'customer_nationality' => $booking->user->nationality,
+                'customer_nif' => $booking->user->nif,
                 'event_name' => $booking->event->name,
                 'hotel_name' => $booking->hotel->name,
                 'check_in' => $booking->check_in->toDateString(),
@@ -61,8 +64,8 @@ class BookingController extends Controller
                 'total_price' => (float) $booking->total_price,
                 'currency' => $booking->payment?->currency ?? 'EUR',
                 'booking_status' => $booking->status,
-                'payment_status' => $booking->payment?->status,
-                'can_cancel' => now()->lessThanOrEqualTo($booking->rate->cancellation_deadline),
+                'payment_status' => $this->displayPaymentStatus($booking->payment),
+                'can_cancel' => $this->canCancelByPolicy($booking),
                 'can_delete' => $this->canDeleteBooking($booking),
             ])
             ->values();
@@ -101,7 +104,7 @@ class BookingController extends Controller
             if ($lockedBooking->status === 'CANCELLED' && $newStatus !== 'CANCELLED') {
                 if ($lockedBooking->rate->stock <= 0) {
                     throw ValidationException::withMessages([
-                        'status' => 'Cannot reactivate booking because stock is 0.',
+                        'status' => 'Não é possível reativar esta reserva porque não existe stock disponível.',
                     ]);
                 }
 
@@ -111,17 +114,22 @@ class BookingController extends Controller
             $lockedBooking->update([
                 'status' => $newStatus,
                 'cancellation_reason' => $newStatus === 'CANCELLED'
-                    ? (($data['cancellation_reason'] ?? null) ?: 'Cancelled by admin.')
+                    ? (($data['cancellation_reason'] ?? null) ?: 'Cancelado pelo administrador.')
                     : null,
                 'cancelled_at' => $newStatus === 'CANCELLED' ? now() : null,
             ]);
 
             if ($lockedBooking->payment !== null) {
+                $policy = (string) $lockedBooking->rate->cancellation_policy;
+                $hasAnyPaidInstallment = $lockedBooking->payment->paid_at !== null
+                    || $lockedBooking->payment->deposit_paid_at !== null
+                    || $lockedBooking->payment->balance_paid_at !== null
+                    || $lockedBooking->payment->status === 'PAID';
                 $nextPaymentStatus = match ($newStatus) {
-                    'CANCELLED' => match ($lockedBooking->payment->status) {
-                        'PAID' => 'REFUNDED',
-                        'PENDING' => 'FAILED',
-                        default => $lockedBooking->payment->status,
+                    'CANCELLED' => match (true) {
+                        $policy === Rate::CANCELLATION_POLICY_FREE && $hasAnyPaidInstallment => 'REFUNDED',
+                        $policy !== Rate::CANCELLATION_POLICY_FREE && $hasAnyPaidInstallment => 'PAID',
+                        default => 'FAILED',
                     },
                     'CONFIRMED', 'PENDING' => in_array($lockedBooking->payment->status, ['FAILED', 'REFUNDED'], true)
                         ? 'PENDING'
@@ -150,7 +158,7 @@ class BookingController extends Controller
             request: $request
         );
 
-        return back()->with('success', 'Booking status updated successfully.');
+        return back()->with('success', 'Estado da reserva atualizado com sucesso.');
     }
 
     public function destroy(Request $request, Booking $booking, AuditLogger $auditLogger): RedirectResponse
@@ -163,7 +171,7 @@ class BookingController extends Controller
 
             if (! $this->canDeleteBooking($lockedBooking)) {
                 throw ValidationException::withMessages([
-                    'booking_delete' => 'Only cancelled bookings or bookings with an ended stay can be deleted.',
+                    'booking_delete' => 'Só é possível apagar reservas canceladas ou reservas cuja estadia já terminou.',
                 ]);
             }
 
@@ -182,12 +190,43 @@ class BookingController extends Controller
             $lockedBooking->delete();
         });
 
-        return back()->with('success', 'Booking deleted successfully.');
+        return back()->with('success', 'Reserva apagada com sucesso.');
     }
 
     private function canDeleteBooking(Booking $booking): bool
     {
         return $booking->status === 'CANCELLED'
             || $booking->check_out->lt(now()->startOfDay());
+    }
+
+    private function displayPaymentStatus(?\App\Models\Payment $payment): ?string
+    {
+        if ($payment === null) {
+            return null;
+        }
+
+        if (
+            $payment->installment_type === \App\Models\Payment::INSTALLMENT_BALANCE
+            && $payment->deposit_paid_at !== null
+            && $payment->status === 'PENDING'
+        ) {
+            return 'PARTIALLY_PAID';
+        }
+
+        return $payment->status;
+    }
+
+    private function canCancelByPolicy(Booking $booking): bool
+    {
+        if ($booking->status === 'CANCELLED') {
+            return false;
+        }
+
+        if ((string) $booking->rate->cancellation_policy === Rate::CANCELLATION_POLICY_FREE) {
+            return $booking->rate->cancellation_deadline !== null
+                && now()->lessThanOrEqualTo($booking->rate->cancellation_deadline);
+        }
+
+        return true;
     }
 }

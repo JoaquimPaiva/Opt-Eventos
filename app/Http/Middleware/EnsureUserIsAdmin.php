@@ -14,7 +14,7 @@ class EnsureUserIsAdmin
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()?->role !== 'ADMIN') {
-            abort(403);
+            abort(403, 'Não tens permissões para aceder a esta área de administração.');
         }
 
         return $next($request);

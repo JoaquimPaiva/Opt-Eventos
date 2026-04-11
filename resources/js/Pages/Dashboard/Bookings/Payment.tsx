@@ -4,7 +4,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 interface PaymentDetail {
     booking_id: string;
@@ -15,8 +15,18 @@ interface PaymentDetail {
     amount: number;
     currency: string;
     status: string;
+    display_status?: string;
     due_date?: string | null;
     paid_at?: string | null;
+    installment_type?: string;
+    cancellation_policy: string;
+    deposit_amount?: number | null;
+    balance_amount?: number | null;
+    balance_due_days_before_checkin?: number | null;
+    deposit_due_date?: string | null;
+    balance_due_date?: string | null;
+    deposit_paid_at?: string | null;
+    balance_paid_at?: string | null;
     is_stripe_provider: boolean;
     can_prepare_online_payment: boolean;
     can_confirm_test_payment: boolean;
@@ -29,6 +39,8 @@ interface PaymentPageProps {
 function paymentBadgeClass(status: string): string {
     return status === 'PAID'
         ? 'bg-emerald-200 text-emerald-900'
+        : status === 'PARTIALLY_PAID'
+            ? 'bg-sky-200 text-sky-900'
         : status === 'FAILED'
             ? 'bg-rose-200 text-rose-900'
             : status === 'REFUNDED'
@@ -43,6 +55,7 @@ export default function BookingPayment({ payment }: PaymentPageProps) {
     const [intentLoading, setIntentLoading] = useState(false);
     const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [onlineError, setOnlineError] = useState<string | null>(null);
+    const [isSyncingRedirectPayment, setIsSyncingRedirectPayment] = useState(false);
 
     const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
     const stripePromise = useMemo(() => {
@@ -68,7 +81,7 @@ export default function BookingPayment({ payment }: PaymentPageProps) {
             const response = await axios.post(route('dashboard.bookings.payment.intent', payment.booking_id));
             const nextClientSecret = String(response.data.client_secret ?? '');
             if (nextClientSecret === '') {
-                throw new Error('Missing client secret');
+                throw new Error('Credenciais de pagamento em falta');
             }
             setClientSecret(nextClientSecret);
         } catch (error: unknown) {
@@ -81,6 +94,73 @@ export default function BookingPayment({ payment }: PaymentPageProps) {
             setIntentLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (!payment.is_stripe_provider) {
+            return;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const hasRedirectParams =
+            params.has('payment_intent')
+            || params.has('payment_intent_client_secret')
+            || params.has('redirect_status');
+        if (!hasRedirectParams) {
+            return;
+        }
+
+        let isCancelled = false;
+
+        const syncFromRedirect = async () => {
+            setOnlineError(null);
+            setIsSyncingRedirectPayment(true);
+
+            try {
+                for (let attempt = 0; attempt < 10; attempt += 1) {
+                    if (isCancelled) {
+                        return;
+                    }
+
+                    const response = await axios.post(route('dashboard.bookings.payment.sync-stripe', payment.booking_id));
+                    const syncedStatus = String(response.data?.status ?? 'PENDING');
+                    const displayStatus = String(response.data?.display_status ?? syncedStatus);
+
+                    if (syncedStatus === 'PAID') {
+                        window.location.href = route('dashboard.bookings.show', payment.booking_id);
+                        return;
+                    }
+
+                    if (displayStatus === 'PARTIALLY_PAID') {
+                        window.location.href = route('dashboard.bookings.payment', payment.booking_id);
+                        return;
+                    }
+
+                    if (syncedStatus === 'FAILED' || syncedStatus === 'REFUNDED') {
+                        break;
+                    }
+
+                    if (attempt < 9) {
+                        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                    }
+                }
+            } catch {
+                if (!isCancelled) {
+                    setOnlineError('Recebemos o retorno do pagamento, mas não foi possível sincronizar o estado automaticamente.');
+                }
+            } finally {
+                if (!isCancelled) {
+                    setIsSyncingRedirectPayment(false);
+                    window.history.replaceState({}, '', route('dashboard.bookings.payment', payment.booking_id));
+                }
+            }
+        };
+
+        void syncFromRedirect();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [payment.booking_id, payment.is_stripe_provider]);
 
     return (
         <AuthenticatedLayout
@@ -123,6 +203,12 @@ export default function BookingPayment({ payment }: PaymentPageProps) {
                         </div>
                     ) : null}
 
+                    {isSyncingRedirectPayment ? (
+                        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+                            A sincronizar o resultado do pagamento online...
+                        </div>
+                    ) : null}
+
                     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 px-6 py-6 text-white">
                             <p className="text-xs uppercase tracking-[0.18em] text-slate-200">Pagamento da reserva</p>
@@ -132,8 +218,8 @@ export default function BookingPayment({ payment }: PaymentPageProps) {
                                 <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
                                     {payment.currency} {payment.amount.toFixed(2)}
                                 </span>
-                                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${paymentBadgeClass(payment.status)}`}>
-                                    {payment.status}
+                                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${paymentBadgeClass(payment.display_status ?? payment.status)}`}>
+                                    {payment.display_status ?? payment.status}
                                 </span>
                             </div>
                         </div>
@@ -145,6 +231,38 @@ export default function BookingPayment({ payment }: PaymentPageProps) {
                             <p><span className="font-semibold text-slate-900">Vencimento:</span> {payment.due_date ?? 'N/D'}</p>
                             <p><span className="font-semibold text-slate-900">Pago em:</span> {payment.paid_at ?? 'N/D'}</p>
                             <p><span className="font-semibold text-slate-900">Montante:</span> {payment.amount.toFixed(2)} {payment.currency}</p>
+                            <p>
+                                <span className="font-semibold text-slate-900">Parcela atual:</span>{' '}
+                                {payment.installment_type === 'DEPOSIT'
+                                    ? 'Sinal'
+                                    : payment.installment_type === 'BALANCE'
+                                        ? 'Restante'
+                                        : 'Pagamento único'}
+                            </p>
+                            <p>
+                                <span className="font-semibold text-slate-900">Política:</span>{' '}
+                                {payment.cancellation_policy === 'FREE_CANCELLATION'
+                                    ? 'Cancelamento gratuito'
+                                    : payment.cancellation_policy === 'NON_REFUNDABLE'
+                                        ? 'Tarifa não reembolsável'
+                                        : 'Sinal não reembolsável'}
+                            </p>
+                            {payment.cancellation_policy === 'DEPOSIT_NON_REFUNDABLE' ? (
+                                <>
+                                    <p>
+                                        <span className="font-semibold text-slate-900">Sinal:</span>{' '}
+                                        {Number(payment.deposit_amount ?? 0).toFixed(2)} {payment.currency} (não reembolsável)
+                                        {' | '}vencimento {payment.deposit_due_date ?? 'N/D'}
+                                        {' | '}pago em {payment.deposit_paid_at ?? 'N/D'}
+                                    </p>
+                                    <p>
+                                        <span className="font-semibold text-slate-900">Restante:</span>{' '}
+                                        {Number(payment.balance_amount ?? 0).toFixed(2)} {payment.currency}
+                                        {' | '}vencimento {payment.balance_due_date ?? 'N/D'}
+                                        {' | '}pago em {payment.balance_paid_at ?? 'N/D'}
+                                    </p>
+                                </>
+                            ) : null}
                         </div>
                     </div>
 
@@ -232,11 +350,24 @@ function StripePaymentForm({ bookingId }: { bookingId: string }) {
         const paymentIntent = result.paymentIntent;
         if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
             try {
-                const syncResponse = await axios.post(route('dashboard.bookings.payment.sync-stripe', bookingId));
-                const syncedStatus = String(syncResponse.data?.status ?? 'PENDING');
-                if (syncedStatus === 'PAID') {
-                    window.location.href = route('dashboard.bookings.show', bookingId);
-                    return;
+                for (let attempt = 0; attempt < 5; attempt += 1) {
+                    const syncResponse = await axios.post(route('dashboard.bookings.payment.sync-stripe', bookingId));
+                    const syncedStatus = String(syncResponse.data?.status ?? 'PENDING');
+                    const displayStatus = String(syncResponse.data?.display_status ?? syncedStatus);
+
+                    if (syncedStatus === 'PAID') {
+                        window.location.href = route('dashboard.bookings.show', bookingId);
+                        return;
+                    }
+
+                    if (displayStatus === 'PARTIALLY_PAID') {
+                        window.location.href = route('dashboard.bookings.payment', bookingId);
+                        return;
+                    }
+
+                    if (attempt < 4) {
+                        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                    }
                 }
 
                 setMessage('Pagamento em processamento. Atualiza esta página dentro de alguns instantes.');

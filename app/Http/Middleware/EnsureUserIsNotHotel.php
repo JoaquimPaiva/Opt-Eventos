@@ -14,7 +14,7 @@ class EnsureUserIsNotHotel
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()?->role === 'HOTEL') {
-            abort(403);
+            abort(403, 'Esta funcionalidade não está disponível para contas de hotel.');
         }
 
         return $next($request);

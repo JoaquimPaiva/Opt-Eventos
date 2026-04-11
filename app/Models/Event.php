@@ -14,6 +14,7 @@ class Event extends Model
         'name',
         'slug',
         'description',
+        'cover_image',
         'location',
         'latitude',
         'longitude',
@@ -22,6 +23,7 @@ class Event extends Model
         'booking_start',
         'booking_end',
         'is_active',
+        'is_featured',
     ];
 
     protected function casts(): array
@@ -34,6 +36,7 @@ class Event extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'is_active' => 'boolean',
+            'is_featured' => 'boolean',
         ];
     }
 

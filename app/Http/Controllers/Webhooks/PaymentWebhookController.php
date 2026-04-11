@@ -15,13 +15,13 @@ class PaymentWebhookController extends Controller
         $payload = (string) $request->getContent();
 
         if (! $this->isSignatureValid($request, $payload, $provider)) {
-            return response()->json(['message' => 'Invalid webhook signature.'], 401);
+            return response()->json(['message' => 'Assinatura do webhook inválida.'], 401);
         }
 
         /** @var array<string, mixed>|null $event */
         $event = json_decode($payload, true);
         if (! is_array($event)) {
-            return response()->json(['message' => 'Invalid webhook payload.'], 422);
+            return response()->json(['message' => 'Conteúdo do webhook inválido.'], 422);
         }
 
         $event['provider'] = $provider;

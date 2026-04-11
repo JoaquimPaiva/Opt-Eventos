@@ -15,7 +15,7 @@ class NotificationController extends Controller
         $user = $request->user();
         if ($user === null) {
             throw ValidationException::withMessages([
-                'notification' => 'User is not authenticated.',
+                'notification' => 'É necessário iniciar sessão para consultar notificações.',
             ]);
         }
 
@@ -30,7 +30,7 @@ class NotificationController extends Controller
             ->get()
             ->map(fn (DatabaseNotification $notification) => [
                 'id' => (string) $notification->id,
-                'title' => (string) data_get($notification->data, 'title', 'Notification'),
+                'title' => (string) data_get($notification->data, 'title', 'Notificação'),
                 'message' => (string) data_get($notification->data, 'message', ''),
                 'url' => (string) data_get($notification->data, 'url', route('dashboard')),
                 'created_at' => $notification->created_at?->toDateTimeString(),
@@ -58,7 +58,7 @@ class NotificationController extends Controller
         $user = $request->user();
         if ($user === null) {
             throw ValidationException::withMessages([
-                'notification' => 'User is not authenticated.',
+                'notification' => 'É necessário iniciar sessão para gerir notificações.',
             ]);
         }
 

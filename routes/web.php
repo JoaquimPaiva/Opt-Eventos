@@ -12,12 +12,15 @@ use App\Http\Controllers\Admin\SupplierPaymentController as AdminSupplierPayment
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Dashboard\BookingDashboardController;
 use App\Http\Controllers\Hotel\BookingController as HotelBookingController;
+use App\Http\Controllers\Hotel\DashboardController as HotelDashboardController;
 use App\Http\Controllers\Hotel\UserController as HotelUserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Webhooks\PaymentWebhookController;
+use App\Models\Event;
 use App\Models\Rate;
+use App\Support\MediaUrl;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Carbon;
@@ -26,6 +29,11 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     $today = Carbon::today()->toDateString();
+    $featuredEventIds = Event::query()
+        ->where('is_featured', true)
+        ->pluck('id')
+        ->map(fn ($id) => (int) $id)
+        ->values();
 
     $rates = Rate::query()
         ->with(['hotel.event', 'roomType', 'mealPlan'])
@@ -34,7 +42,16 @@ Route::get('/', function () {
         ->whereHas('hotel.event', function ($query) use ($today) {
             $query
                 ->where('is_active', true)
-                ->whereDate('booking_end', '>=', $today);
+                ->where(function ($windowQuery) use ($today) {
+                    $windowQuery
+                        ->whereNull('booking_start')
+                        ->orWhereDate('booking_start', '<=', $today);
+                })
+                ->where(function ($windowQuery) use ($today) {
+                    $windowQuery
+                        ->whereNull('booking_end')
+                        ->orWhereDate('booking_end', '>=', $today);
+                });
         })
         ->orderByDesc('id')
         ->get()
@@ -43,12 +60,12 @@ Route::get('/', function () {
             'event_id' => $rate->hotel->event->id,
             'hotel_id' => $rate->hotel->id,
             'event_name' => $rate->hotel->event->name,
+            'event_cover_image' => MediaUrl::fromStoragePath($rate->hotel->event->cover_image),
             'hotel_name' => $rate->hotel->name,
             'hotel_images' => collect($rate->hotel->gallery_images ?? [])
                 ->filter(fn ($path) => is_string($path) && $path !== '')
-                ->map(fn (string $path) => str_starts_with($path, 'http://') || str_starts_with($path, 'https://')
-                    ? $path
-                    : '/storage/'.ltrim($path, '/'))
+                ->map(fn (string $path) => MediaUrl::fromStoragePath($path))
+                ->filter(fn ($url) => is_string($url) && $url !== '')
                 ->values()
                 ->all(),
             'room_type' => $rate->roomType->name,
@@ -56,8 +73,8 @@ Route::get('/', function () {
             'sale_price' => (float) $rate->sale_price,
             'currency' => $rate->currency,
             'stock' => $rate->stock,
-            'booking_start' => $rate->hotel->event->booking_start->toDateString(),
-            'booking_end' => $rate->hotel->event->booking_end->toDateString(),
+            'booking_start' => $rate->hotel->event->booking_start?->toDateString(),
+            'booking_end' => $rate->hotel->event->booking_end?->toDateString(),
             'max_guests' => $rate->roomType->max_guests,
         ])
         ->values();
@@ -67,9 +84,48 @@ Route::get('/', function () {
         'canRegister' => Route::has('register'),
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
+        'featured_event_ids' => $featuredEventIds,
         'rates' => $rates,
     ]);
 });
+
+Route::get('/eventos', function () {
+    $events = Event::query()
+        ->withCount('hotels')
+        ->with([
+            'hotels:id,event_id,gallery_images',
+        ])
+        ->orderByDesc('start_date')
+        ->get()
+        ->map(fn (Event $event) => [
+            'id' => $event->id,
+            'name' => $event->name,
+            'description' => $event->description,
+            'cover_image_url' => MediaUrl::fromStoragePath($event->cover_image)
+                ?? collect($event->hotels)
+                    ->flatMap(fn ($hotel) => collect($hotel->gallery_images ?? []))
+                    ->filter(fn ($path) => is_string($path) && $path !== '')
+                    ->map(fn (string $path) => MediaUrl::fromStoragePath($path))
+                    ->filter(fn ($url) => is_string($url) && $url !== '')
+                    ->first(),
+            'location' => $event->location,
+            'start_date' => $event->start_date?->toDateString(),
+            'end_date' => $event->end_date?->toDateString(),
+            'booking_start' => $event->booking_start?->toDateString(),
+            'booking_end' => $event->booking_end?->toDateString(),
+            'is_active' => (bool) $event->is_active,
+            'hotels_count' => (int) $event->hotels_count,
+        ])
+        ->values();
+
+    return Inertia::render('Eventos', [
+        'events' => $events,
+    ]);
+})->name('events.index');
+
+Route::get('/contactos', function () {
+    return Inertia::render('Contactos');
+})->name('contacts.index');
 
 Route::post('/webhooks/payments', PaymentWebhookController::class)
     ->withoutMiddleware([VerifyCsrfToken::class])
@@ -81,7 +137,7 @@ Route::post('/webhooks/stripe', PaymentWebhookController::class)
 
 Route::get('/dashboard', function (\Illuminate\Http\Request $request) {
     if ($request->user()?->role === 'HOTEL') {
-        return redirect()->route('hotel.bookings.index');
+        return redirect()->route('hotel.dashboard');
     }
 
     return Inertia::render('Dashboard');
@@ -89,7 +145,10 @@ Route::get('/dashboard', function (\Illuminate\Http\Request $request) {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('not_hotel')->group(function () {
-        Route::get('/checkout', [BookingController::class, 'create'])->name('checkout');
+        Route::get('/checkout/events', [BookingController::class, 'events'])->name('checkout.events');
+        Route::get('/checkout', [BookingController::class, 'hotels'])->name('checkout');
+        Route::get('/checkout/hotels/{hotel}', [BookingController::class, 'hotel'])->name('checkout.hotels.show');
+        Route::get('/checkout/payment', [BookingController::class, 'payment'])->name('checkout.payment');
         Route::post('/checkout/payment-intent', [BookingController::class, 'createPaymentIntent'])->name('checkout.payment-intent');
         Route::post('/checkout', [BookingController::class, 'store'])->name('checkout.store');
         Route::get('/dashboard/bookings', [BookingDashboardController::class, 'index'])->name('dashboard.bookings.index');
@@ -112,6 +171,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('/admin', AdminDashboardController::class)->name('admin.dashboard');
     Route::resource('/admin/events', EventController::class)->names('admin.events')->except('show');
+    Route::patch('/admin/events/{event}/featured', [EventController::class, 'toggleFeatured'])->name('admin.events.toggle-featured');
     Route::resource('/admin/hotels', HotelController::class)->names('admin.hotels')->except('show');
     Route::resource('/admin/rates', RateController::class)->names('admin.rates')->except('show');
     Route::get('/admin/bookings', [AdminBookingController::class, 'index'])->name('admin.bookings.index');
@@ -128,6 +188,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'hotel'])->group(function () {
+    Route::get('/hotel', HotelDashboardController::class)->name('hotel.dashboard');
     Route::get('/hotel/bookings', [HotelBookingController::class, 'index'])->name('hotel.bookings.index');
     Route::get('/hotel/users', [HotelUserController::class, 'index'])->name('hotel.users.index');
     Route::post('/hotel/users', [HotelUserController::class, 'store'])->name('hotel.users.store');

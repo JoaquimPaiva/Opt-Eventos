@@ -58,8 +58,8 @@ export default function HotelsIndex({ hotels }: HotelsIndexProps) {
                         </div>
                     ) : null}
 
-                    <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                        <table className="w-full min-w-[1040px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">

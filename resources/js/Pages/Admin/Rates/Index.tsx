@@ -12,7 +12,10 @@ interface RateItem {
     sale_price: number;
     currency: string;
     stock: number;
-    cancellation_deadline: string;
+    cancellation_policy: string;
+    deposit_amount: number | null;
+    balance_due_days_before_checkin: number | null;
+    cancellation_deadline: string | null;
     is_active: boolean;
 }
 
@@ -55,14 +58,14 @@ export default function RatesIndex({ rates }: RatesIndexProps) {
                         </div>
                     ) : null}
 
-                    <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                        <table className="w-full min-w-[980px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Tarifa</th>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Preços</th>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Stock</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Prazo</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Política</th>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Estado</th>
                                     <th className="px-4 py-3 text-right font-semibold text-gray-600">Ações</th>
                                 </tr>
@@ -82,7 +85,23 @@ export default function RatesIndex({ rates }: RatesIndexProps) {
                                             <p>Venda: {rate.sale_price} {rate.currency}</p>
                                         </td>
                                         <td className="px-4 py-3 text-gray-700">{rate.stock}</td>
-                                        <td className="px-4 py-3 text-gray-700">{rate.cancellation_deadline}</td>
+                                        <td className="px-4 py-3 text-gray-700">
+                                            <p>
+                                                {rate.cancellation_policy === 'FREE_CANCELLATION'
+                                                    ? 'Cancelamento gratuito'
+                                                    : rate.cancellation_policy === 'NON_REFUNDABLE'
+                                                        ? 'Não reembolsável'
+                                                        : 'Sinal não reembolsável'}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Prazo: {rate.cancellation_deadline ?? 'N/D'}
+                                            </p>
+                                            {rate.cancellation_policy === 'DEPOSIT_NON_REFUNDABLE' ? (
+                                                <p className="text-xs text-gray-500">
+                                                    Sinal: {Number(rate.deposit_amount ?? 0).toFixed(2)} {rate.currency} | Restante: {rate.balance_due_days_before_checkin ?? 0} dias antes
+                                                </p>
+                                            ) : null}
+                                        </td>
                                         <td className="px-4 py-3">
                                             <span
                                                 className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${

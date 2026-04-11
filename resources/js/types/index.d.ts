@@ -2,6 +2,8 @@ export interface User {
     id: number;
     name: string;
     email: string;
+    nationality?: string | null;
+    nif?: string | null;
     role?: 'ADMIN' | 'CLIENT' | 'HOTEL';
     hotel_id?: number | null;
     email_verified_at?: string;
@@ -24,6 +26,7 @@ export type PageProps<
     };
     flash?: {
         success?: string;
+        error?: string;
     };
     notifications?: {
         unread_count: number;

@@ -24,6 +24,7 @@ interface BookingDetail {
     supplier_due_date?: string | null;
     can_cancel: boolean;
     can_delete: boolean;
+    cancellation_policy?: string | null;
     cancellation_deadline?: string | null;
 }
 
@@ -126,6 +127,15 @@ export default function BookingShow({ booking }: BookingShowProps) {
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Cancelamento</h4>
+                        <p className="mt-2 text-sm text-slate-600">
+                            Política: {booking.cancellation_policy === 'FREE_CANCELLATION'
+                                ? 'Cancelamento gratuito'
+                                : booking.cancellation_policy === 'NON_REFUNDABLE'
+                                    ? 'Tarifa não reembolsável'
+                                    : booking.cancellation_policy === 'DEPOSIT_NON_REFUNDABLE'
+                                        ? 'Sinal não reembolsável'
+                                        : 'N/D'}
+                        </p>
                         <p className="mt-2 text-sm text-slate-600">
                             Limite para cancelar: {booking.cancellation_deadline ?? 'N/D'}
                         </p>

@@ -2,7 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Booking;
 use App\Models\Event;
+use App\Models\Hotel;
+use App\Models\MealPlan;
+use App\Models\Rate;
+use App\Models\RoomType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -74,6 +79,72 @@ class EventManagementTest extends TestCase
         $this->actingAs($client)->get(route('admin.events.edit', $event))->assertForbidden();
         $this->actingAs($client)->post(route('admin.events.store'), [])->assertForbidden();
         $this->actingAs($client)->put(route('admin.events.update', $event), [])->assertForbidden();
+        $this->actingAs($client)->patch(route('admin.events.toggle-featured', $event), [])->assertForbidden();
         $this->actingAs($client)->delete(route('admin.events.destroy', $event))->assertForbidden();
+    }
+
+    public function test_admin_can_toggle_event_featured_status(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $event = Event::factory()->create([
+            'is_featured' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.events.toggle-featured', $event))
+            ->assertRedirect(route('admin.events.index'));
+
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'is_featured' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.events.toggle-featured', $event))
+            ->assertRedirect(route('admin.events.index'));
+
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'is_featured' => 0,
+        ]);
+    }
+
+    public function test_admin_cannot_delete_event_with_related_bookings(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = User::factory()->create();
+        $event = Event::factory()->create();
+        $hotel = Hotel::factory()->create(['event_id' => $event->id]);
+        $roomType = RoomType::factory()->create(['name' => 'single', 'max_guests' => 2]);
+        $mealPlan = MealPlan::factory()->create(['name' => 'breakfast']);
+        $rate = Rate::factory()->create([
+            'hotel_id' => $hotel->id,
+            'room_type_id' => $roomType->id,
+            'meal_plan_id' => $mealPlan->id,
+        ]);
+
+        Booking::query()->create([
+            'user_id' => $customer->id,
+            'event_id' => $event->id,
+            'hotel_id' => $hotel->id,
+            'rate_id' => $rate->id,
+            'check_in' => now()->addDays(20)->toDateString(),
+            'check_out' => now()->addDays(23)->toDateString(),
+            'guests' => 2,
+            'nights' => 3,
+            'subtotal' => 450,
+            'fees_total' => 0,
+            'total_price' => 450,
+            'status' => 'CONFIRMED',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.events.destroy', $event))
+            ->assertRedirect(route('admin.events.index'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+        ]);
     }
 }

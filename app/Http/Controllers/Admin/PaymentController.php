@@ -76,10 +76,14 @@ class PaymentController extends Controller
         $previousStatus = $payment->status;
         $status = (string) $request->validated('status');
 
-        $payment->update([
-            'status' => $status,
-            'paid_at' => in_array($status, ['PAID', 'REFUNDED'], true) ? now() : null,
-        ]);
+        if ($status === 'PAID') {
+            $this->markCurrentInstallmentAsPaid($payment);
+        } else {
+            $payment->update([
+                'status' => $status,
+                'paid_at' => in_array($status, ['REFUNDED'], true) ? now() : null,
+            ]);
+        }
 
         $auditLogger->log(
             action: 'admin.payment.status_updated',
@@ -94,5 +98,48 @@ class PaymentController extends Controller
         );
 
         return back()->with('success', 'Client payment status updated successfully.');
+    }
+
+    private function markCurrentInstallmentAsPaid(Payment $payment): void
+    {
+        if ($payment->installment_type === Payment::INSTALLMENT_DEPOSIT) {
+            $hasBalance = ((float) ($payment->balance_amount ?? 0)) > 0;
+            if (! $hasBalance) {
+                $payment->update([
+                    'status' => 'PAID',
+                    'deposit_paid_at' => now(),
+                    'paid_at' => now(),
+                ]);
+
+                return;
+            }
+
+            $payment->update([
+                'status' => 'PENDING',
+                'installment_type' => Payment::INSTALLMENT_BALANCE,
+                'deposit_paid_at' => now(),
+                'amount' => (float) $payment->balance_amount,
+                'due_date' => $payment->balance_due_date,
+                'provider_reference' => null,
+                'paid_at' => null,
+            ]);
+
+            return;
+        }
+
+        if ($payment->installment_type === Payment::INSTALLMENT_BALANCE) {
+            $payment->update([
+                'status' => 'PAID',
+                'balance_paid_at' => now(),
+                'paid_at' => now(),
+            ]);
+
+            return;
+        }
+
+        $payment->update([
+            'status' => 'PAID',
+            'paid_at' => now(),
+        ]);
     }
 }

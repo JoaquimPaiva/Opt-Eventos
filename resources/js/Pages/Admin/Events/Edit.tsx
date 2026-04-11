@@ -8,6 +8,7 @@ interface EventPayload {
     name: string;
     slug: string;
     description?: string | null;
+    cover_image_url?: string | null;
     location: string;
     latitude: string;
     longitude: string;
@@ -23,10 +24,14 @@ interface EventEditProps {
 }
 
 export default function EventEdit({ event }: EventEditProps) {
-    const { data, setData, put, processing, errors } = useForm({
+    const { data, setData, post, processing, errors } = useForm({
+        _method: 'put',
         name: event.name,
         slug: event.slug,
         description: event.description ?? '',
+        cover_image: null as File | null,
+        cover_image_url: event.cover_image_url ?? null,
+        remove_cover_image: false,
         location: event.location,
         latitude: event.latitude,
         longitude: event.longitude,
@@ -39,7 +44,9 @@ export default function EventEdit({ event }: EventEditProps) {
 
     const submit = (formEvent: FormEvent) => {
         formEvent.preventDefault();
-        put(route('admin.events.update', event.id));
+        post(route('admin.events.update', event.id), {
+            forceFormData: true,
+        });
     };
 
     return (

@@ -33,6 +33,7 @@ class RateManagementTest extends TestCase
                 'sale_price' => 150,
                 'currency' => 'eur',
                 'stock' => 20,
+                'cancellation_policy' => 'FREE_CANCELLATION',
                 'cancellation_deadline' => '2026-12-01 10:00:00',
                 'is_active' => true,
             ])
@@ -50,6 +51,7 @@ class RateManagementTest extends TestCase
                 'sale_price' => 190,
                 'currency' => 'usd',
                 'stock' => 9,
+                'cancellation_policy' => 'FREE_CANCELLATION',
                 'cancellation_deadline' => '2026-12-15 12:30:00',
                 'is_active' => false,
             ])

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Webhooks;
 
+use App\Mail\InvoiceIssuedMail;
 use App\Models\Booking;
 use App\Models\Event;
 use App\Models\Hotel;
@@ -11,6 +12,7 @@ use App\Models\Rate;
 use App\Models\RoomType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class PaymentWebhookTest extends TestCase
@@ -20,6 +22,7 @@ class PaymentWebhookTest extends TestCase
     public function test_valid_webhook_marks_payment_as_paid_and_stores_event(): void
     {
         config()->set('payment.webhook_secret', 'test-secret');
+        Mail::fake();
 
         $payment = $this->createPaymentWithReference('pm_test_paid');
         $payload = [
@@ -53,6 +56,14 @@ class PaymentWebhookTest extends TestCase
             'auditable_type' => Payment::class,
             'auditable_id' => (string) $payment->id,
         ]);
+
+        $this->assertDatabaseHas('invoices', [
+            'booking_id' => $payment->booking_id,
+            'installment_type' => 'FULL',
+            'amount' => 300.00,
+            'currency' => 'EUR',
+        ]);
+        Mail::assertSent(InvoiceIssuedMail::class);
     }
 
     public function test_invalid_signature_is_rejected(): void
@@ -110,6 +121,7 @@ class PaymentWebhookTest extends TestCase
     public function test_valid_stripe_webhook_marks_payment_as_paid(): void
     {
         config()->set('payment.stripe_webhook_secret', 'stripe-secret');
+        Mail::fake();
 
         $payment = $this->createPaymentWithReference('pi_123');
         $payment->update(['provider' => 'STRIPE']);
@@ -138,6 +150,13 @@ class PaymentWebhookTest extends TestCase
         $payment->refresh();
         $this->assertSame('PAID', $payment->status);
         $this->assertNotNull($payment->paid_at);
+        $this->assertDatabaseHas('invoices', [
+            'booking_id' => $payment->booking_id,
+            'installment_type' => 'FULL',
+            'amount' => 300.00,
+            'currency' => 'EUR',
+        ]);
+        Mail::assertSent(InvoiceIssuedMail::class);
     }
 
     public function test_stripe_webhook_with_expired_timestamp_is_rejected(): void

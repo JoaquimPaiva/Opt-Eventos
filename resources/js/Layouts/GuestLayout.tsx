@@ -1,10 +1,12 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
+import ErrorToasts from "@/Components/ErrorToasts";
 import { Link } from "@inertiajs/react";
 import { PropsWithChildren } from "react";
 
 export default function Guest({ children }: PropsWithChildren) {
     return (
         <div className="relative flex min-h-screen flex-col items-center bg-slate-100 px-4 pb-8 pt-6 sm:justify-center sm:pt-0">
+            <ErrorToasts />
             <div className="absolute inset-x-0 top-0 -z-10 h-[380px] bg-[radial-gradient(circle_at_top_left,_#fde68a_0,_transparent_42%),radial-gradient(circle_at_top_right,_#bfdbfe_0,_transparent_46%),linear-gradient(180deg,_#ffffff_0%,_#f1f5f9_80%)]" />
             <div className="mb-2">
                 <Link href="/">

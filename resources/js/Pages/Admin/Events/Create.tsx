@@ -8,6 +8,9 @@ export default function EventCreate() {
         name: '',
         slug: '',
         description: '',
+        cover_image: null as File | null,
+        cover_image_url: null as string | null,
+        remove_cover_image: false,
         location: '',
         latitude: '',
         longitude: '',
@@ -20,7 +23,9 @@ export default function EventCreate() {
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        post(route('admin.events.store'));
+        post(route('admin.events.store'), {
+            forceFormData: true,
+        });
     };
 
     return (

@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\StoreHotelRequest;
 use App\Http\Requests\Admin\UpdateHotelRequest;
 use App\Models\Event;
 use App\Models\Hotel;
+use App\Support\MediaUrl;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -102,8 +104,24 @@ class HotelController extends Controller
 
     public function destroy(Hotel $hotel): RedirectResponse
     {
+        if ($hotel->bookings()->exists()) {
+            return to_route('admin.hotels.index')->with(
+                'error',
+                'Não é possível apagar este hotel porque existem reservas associadas.'
+            );
+        }
+
         $paths = $this->sanitizeGalleryPaths($hotel->gallery_images ?? []);
-        $hotel->delete();
+
+        try {
+            $hotel->delete();
+        } catch (QueryException) {
+            return to_route('admin.hotels.index')->with(
+                'error',
+                'Não foi possível apagar este hotel porque existem registos dependentes.'
+            );
+        }
+
         if ($paths !== []) {
             Storage::disk('public')->delete($paths);
         }
@@ -170,12 +188,18 @@ class HotelController extends Controller
     {
         return collect(is_array($paths) ? $paths : [])
             ->filter(fn ($path) => is_string($path) && $path !== '')
-            ->map(fn (string $path) => [
-                'path' => $path,
-                'url' => str_starts_with($path, 'http://') || str_starts_with($path, 'https://')
-                    ? $path
-                    : '/storage/'.ltrim($path, '/'),
-            ])
+            ->map(function (string $path): ?array {
+                $url = MediaUrl::fromStoragePath($path);
+                if (! is_string($url) || $url === '') {
+                    return null;
+                }
+
+                return [
+                    'path' => $path,
+                    'url' => $url,
+                ];
+            })
+            ->filter(fn ($item) => is_array($item))
             ->values()
             ->all();
     }

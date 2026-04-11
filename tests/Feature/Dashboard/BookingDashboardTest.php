@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Mail\InvoiceIssuedMail;
 use App\Models\Booking;
 use App\Models\Event;
 use App\Models\Hotel;
@@ -16,6 +17,7 @@ use App\Notifications\BookingCancelledNotification;
 use App\Notifications\PaymentConfirmedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class BookingDashboardTest extends TestCase
@@ -201,6 +203,7 @@ class BookingDashboardTest extends TestCase
     public function test_user_can_confirm_test_payment_from_payment_area(): void
     {
         config()->set('payment.provider', 'STRIPE_MOCK');
+        Mail::fake();
 
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
@@ -231,6 +234,15 @@ class BookingDashboardTest extends TestCase
             'notifiable_id' => $admin->id,
             'type' => AdminBookingConfirmedNotification::class,
         ]);
+
+        $this->assertDatabaseHas('invoices', [
+            'booking_id' => $booking->id,
+            'installment_type' => 'FULL',
+            'currency' => 'EUR',
+            'amount' => 300.00,
+        ]);
+
+        Mail::assertSent(InvoiceIssuedMail::class);
     }
 
     public function test_user_can_prepare_payment_intent_from_payment_area_when_provider_is_stripe(): void
@@ -295,6 +307,7 @@ class BookingDashboardTest extends TestCase
     {
         config()->set('payment.provider', 'STRIPE');
         config()->set('payment.stripe_secret_key', 'sk_test_123');
+        Mail::fake();
 
         $admin = User::factory()->admin()->create();
         Http::fake([
@@ -341,6 +354,15 @@ class BookingDashboardTest extends TestCase
             'notifiable_id' => $admin->id,
             'type' => AdminBookingConfirmedNotification::class,
         ]);
+
+        $this->assertDatabaseHas('invoices', [
+            'booking_id' => $booking->id,
+            'installment_type' => 'FULL',
+            'currency' => 'EUR',
+            'amount' => 300.00,
+        ]);
+
+        Mail::assertSent(InvoiceIssuedMail::class);
     }
 
     public function test_user_cannot_sync_stripe_payment_from_other_user_booking(): void

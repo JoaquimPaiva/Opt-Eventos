@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Booking;
 use App\Models\Event;
 use App\Models\Hotel;
+use App\Models\MealPlan;
+use App\Models\Rate;
+use App\Models\RoomType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -76,5 +80,44 @@ class HotelManagementTest extends TestCase
         $this->actingAs($client)->post(route('admin.hotels.store'), [])->assertForbidden();
         $this->actingAs($client)->put(route('admin.hotels.update', $hotel), [])->assertForbidden();
         $this->actingAs($client)->delete(route('admin.hotels.destroy', $hotel))->assertForbidden();
+    }
+
+    public function test_admin_cannot_delete_hotel_with_related_bookings(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $customer = User::factory()->create();
+        $event = Event::factory()->create();
+        $hotel = Hotel::factory()->create(['event_id' => $event->id]);
+        $roomType = RoomType::factory()->create(['name' => 'single', 'max_guests' => 2]);
+        $mealPlan = MealPlan::factory()->create(['name' => 'breakfast']);
+        $rate = Rate::factory()->create([
+            'hotel_id' => $hotel->id,
+            'room_type_id' => $roomType->id,
+            'meal_plan_id' => $mealPlan->id,
+        ]);
+
+        Booking::query()->create([
+            'user_id' => $customer->id,
+            'event_id' => $event->id,
+            'hotel_id' => $hotel->id,
+            'rate_id' => $rate->id,
+            'check_in' => now()->addDays(10)->toDateString(),
+            'check_out' => now()->addDays(12)->toDateString(),
+            'guests' => 2,
+            'nights' => 2,
+            'subtotal' => 300,
+            'fees_total' => 0,
+            'total_price' => 300,
+            'status' => 'CONFIRMED',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.hotels.destroy', $hotel))
+            ->assertRedirect(route('admin.hotels.index'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('hotels', [
+            'id' => $hotel->id,
+        ]);
     }
 }

@@ -31,6 +31,9 @@ class RateFactory extends Factory
             'sale_price' => $sale,
             'currency' => 'EUR',
             'stock' => fake()->numberBetween(5, 40),
+            'cancellation_policy' => 'FREE_CANCELLATION',
+            'deposit_amount' => null,
+            'balance_due_days_before_checkin' => null,
             'cancellation_deadline' => fake()->dateTimeBetween('now', '+6 months'),
             'is_active' => true,
         ];

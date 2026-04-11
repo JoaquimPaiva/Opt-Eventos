@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Booking\CancelBookingRequest;
 use App\Models\Booking;
 use App\Models\Payment;
+use App\Models\Rate;
 use App\Models\User;
 use App\Notifications\AdminBookingConfirmedNotification;
 use App\Notifications\BookingCancelledNotification;
 use App\Notifications\PaymentConfirmedNotification;
 use App\Services\Audit\AuditLogger;
+use App\Services\Billing\InvoiceService;
 use App\Services\Payments\PaymentIntentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -42,7 +44,7 @@ class BookingDashboardController extends Controller
                 'total_price' => (float) $booking->total_price,
                 'currency' => $booking->payment?->currency ?? 'EUR',
                 'booking_status' => $booking->status,
-                'payment_status' => $booking->payment?->status,
+                'payment_status' => $this->displayPaymentStatus($booking->payment),
                 'can_delete' => $this->canDeleteBooking($booking),
             ])
             ->values();
@@ -57,8 +59,7 @@ class BookingDashboardController extends Controller
         abort_unless($booking->user_id === $request->user()->id, 404);
 
         $booking->load(['event', 'hotel', 'rate.roomType', 'rate.mealPlan', 'payment', 'supplierPayment']);
-        $canCancel = $booking->status !== 'CANCELLED'
-            && now()->lessThanOrEqualTo($booking->rate->cancellation_deadline);
+        $canCancel = $this->canCancelBookingByPolicy($booking);
 
         return Inertia::render('Dashboard/Bookings/Show', [
             'booking' => [
@@ -76,12 +77,13 @@ class BookingDashboardController extends Controller
                 'total_price' => (float) $booking->total_price,
                 'currency' => $booking->payment?->currency ?? 'EUR',
                 'booking_status' => $booking->status,
-                'payment_status' => $booking->payment?->status,
+                'payment_status' => $this->displayPaymentStatus($booking->payment),
                 'payment_due_date' => $booking->payment?->due_date?->toDateString(),
                 'supplier_payment_status' => $booking->supplierPayment?->status,
                 'supplier_due_date' => $booking->supplierPayment?->due_date?->toDateString(),
                 'can_cancel' => $canCancel,
                 'can_delete' => $this->canDeleteBooking($booking),
+                'cancellation_policy' => $booking->rate->cancellation_policy,
                 'cancellation_deadline' => $booking->rate->cancellation_deadline?->toDateTimeString(),
             ],
         ]);
@@ -99,7 +101,7 @@ class BookingDashboardController extends Controller
 
             if (! $this->canDeleteBooking($lockedBooking)) {
                 throw ValidationException::withMessages([
-                    'booking_delete' => 'Only cancelled bookings or bookings with an ended stay can be deleted.',
+                    'booking_delete' => 'Só é possível apagar reservas canceladas ou reservas cuja estadia já terminou.',
                 ]);
             }
 
@@ -118,7 +120,7 @@ class BookingDashboardController extends Controller
             $lockedBooking->delete();
         });
 
-        return to_route('dashboard.bookings.index')->with('success', 'Booking deleted successfully.');
+        return to_route('dashboard.bookings.index')->with('success', 'Reserva apagada com sucesso.');
     }
 
     public function cancel(CancelBookingRequest $request, Booking $booking): RedirectResponse
@@ -134,29 +136,38 @@ class BookingDashboardController extends Controller
 
             if ($lockedBooking->status === 'CANCELLED') {
                 throw ValidationException::withMessages([
-                    'booking' => 'Booking is already cancelled.',
+                    'booking' => 'Esta reserva já está cancelada.',
                 ]);
             }
 
-            if (now()->greaterThan($lockedBooking->rate->cancellation_deadline)) {
+            $policy = (string) $lockedBooking->rate->cancellation_policy;
+            if (
+                $policy === Rate::CANCELLATION_POLICY_FREE
+                && $lockedBooking->rate->cancellation_deadline !== null
+                && now()->greaterThan($lockedBooking->rate->cancellation_deadline)
+            ) {
                 throw ValidationException::withMessages([
-                    'booking' => 'Cancellation deadline has passed for this booking.',
+                    'booking' => 'O prazo para cancelamento gratuito desta reserva já terminou.',
                 ]);
             }
 
             $lockedBooking->update([
                 'status' => 'CANCELLED',
-                'cancellation_reason' => $request->string('cancellation_reason')->toString() ?: 'Cancelled by customer.',
+                'cancellation_reason' => $request->string('cancellation_reason')->toString() ?: 'Cancelado pelo cliente.',
                 'cancelled_at' => now(),
             ]);
 
             $lockedBooking->rate->increment('stock');
 
             if ($lockedBooking->payment !== null) {
-                $nextStatus = match ($lockedBooking->payment->status) {
-                    'PAID' => 'REFUNDED',
-                    'PENDING' => 'FAILED',
-                    default => $lockedBooking->payment->status,
+                $hasAnyPaidInstallment = $lockedBooking->payment->paid_at !== null
+                    || $lockedBooking->payment->deposit_paid_at !== null
+                    || $lockedBooking->payment->balance_paid_at !== null
+                    || $lockedBooking->payment->status === 'PAID';
+                $nextStatus = match (true) {
+                    $policy === Rate::CANCELLATION_POLICY_FREE && $hasAnyPaidInstallment => 'REFUNDED',
+                    $policy !== Rate::CANCELLATION_POLICY_FREE && $hasAnyPaidInstallment => 'PAID',
+                    default => 'FAILED',
                 };
 
                 $lockedBooking->payment->update([
@@ -169,14 +180,14 @@ class BookingDashboardController extends Controller
         $booking->refresh()->loadMissing(['event', 'hotel']);
         $request->user()->notify(new BookingCancelledNotification($booking));
 
-        return back()->with('success', 'Booking cancelled successfully.');
+        return back()->with('success', 'Reserva cancelada com sucesso.');
     }
 
     public function payment(Request $request, Booking $booking): Response
     {
         abort_unless($booking->user_id === $request->user()->id, 404);
 
-        $booking->load(['event', 'hotel', 'payment']);
+        $booking->load(['event', 'hotel', 'rate', 'payment']);
         abort_if($booking->payment === null, 404);
 
         return Inertia::render('Dashboard/Bookings/Payment', [
@@ -189,13 +200,23 @@ class BookingDashboardController extends Controller
                 'amount' => (float) $booking->payment->amount,
                 'currency' => $booking->payment->currency,
                 'status' => $booking->payment->status,
+                'display_status' => $this->displayPaymentStatus($booking->payment),
                 'due_date' => $booking->payment->due_date?->toDateString(),
                 'paid_at' => $booking->payment->paid_at?->toDateTimeString(),
-                'is_stripe_provider' => config('payment.provider') === 'STRIPE',
-                'can_confirm_test_payment' => config('payment.provider') !== 'STRIPE'
-                    && in_array((string) $booking->payment->status, ['PENDING', 'FAILED'], true)
+                'installment_type' => $booking->payment->installment_type,
+                'cancellation_policy' => $booking->rate->cancellation_policy,
+                'deposit_amount' => $booking->rate->deposit_amount !== null ? (float) $booking->rate->deposit_amount : null,
+                'balance_due_days_before_checkin' => $booking->rate->balance_due_days_before_checkin,
+                'deposit_due_date' => $booking->payment->deposit_due_date?->toDateString(),
+                'balance_due_date' => $booking->payment->balance_due_date?->toDateString(),
+                'deposit_paid_at' => $booking->payment->deposit_paid_at?->toDateTimeString(),
+                'balance_paid_at' => $booking->payment->balance_paid_at?->toDateTimeString(),
+                'balance_amount' => $booking->payment->balance_amount !== null ? (float) $booking->payment->balance_amount : null,
+                'is_stripe_provider' => $this->isStripeBackedProvider(),
+                'can_confirm_test_payment' => ! $this->isStripeBackedProvider()
+                    && $this->canAcceptPayment($booking->payment)
                     && $booking->status !== 'CANCELLED',
-                'can_prepare_online_payment' => in_array((string) $booking->payment->status, ['PENDING', 'FAILED'], true)
+                'can_prepare_online_payment' => $this->canAcceptPayment($booking->payment)
                     && $booking->status !== 'CANCELLED',
             ],
         ]);
@@ -212,13 +233,13 @@ class BookingDashboardController extends Controller
         $booking->load('payment');
         if ($booking->status === 'CANCELLED' || $booking->payment === null) {
             throw ValidationException::withMessages([
-                'payment' => 'This booking is not eligible for payment.',
+                'payment' => 'Esta reserva não está elegível para pagamento.',
             ]);
         }
 
-        if (! in_array((string) $booking->payment->status, ['PENDING', 'FAILED'], true)) {
+        if (! $this->canAcceptPayment($booking->payment)) {
             throw ValidationException::withMessages([
-                'payment' => 'This booking payment is already settled.',
+                'payment' => 'Este pagamento já se encontra regularizado.',
             ]);
         }
 
@@ -233,12 +254,19 @@ class BookingDashboardController extends Controller
             ]);
         }
 
-        $booking->payment->update([
+        $paymentReference = (string) $intent['payment_reference'];
+        $paymentUpdate = [
             'provider' => (string) $intent['provider'],
-            'provider_reference' => (string) $intent['payment_reference'],
+            'provider_reference' => $paymentReference,
             'status' => 'PENDING',
             'paid_at' => null,
-        ]);
+        ];
+        if ($booking->payment->installment_type === Payment::INSTALLMENT_DEPOSIT) {
+            $paymentUpdate['deposit_provider_reference'] = $paymentReference;
+        } elseif ($booking->payment->installment_type === Payment::INSTALLMENT_BALANCE) {
+            $paymentUpdate['balance_provider_reference'] = $paymentReference;
+        }
+        $booking->payment->update($paymentUpdate);
 
         $auditLogger->log(
             action: 'customer.payment.intent_created',
@@ -248,7 +276,8 @@ class BookingDashboardController extends Controller
             metadata: [
                 'booking_id' => $booking->id,
                 'provider' => (string) $intent['provider'],
-                'payment_reference' => (string) $intent['payment_reference'],
+                'payment_reference' => $paymentReference,
+                'installment_type' => $booking->payment->installment_type,
             ],
             request: $request
         );
@@ -256,18 +285,24 @@ class BookingDashboardController extends Controller
         return response()->json($intent, 201);
     }
 
-    public function confirmPayment(Request $request, Booking $booking, AuditLogger $auditLogger): RedirectResponse
+    public function confirmPayment(
+        Request $request,
+        Booking $booking,
+        AuditLogger $auditLogger,
+        InvoiceService $invoiceService
+    ): RedirectResponse
     {
         abort_unless($booking->user_id === $request->user()->id, 404);
 
-        if (config('payment.provider') === 'STRIPE') {
+        if ($this->isStripeBackedProvider()) {
             throw ValidationException::withMessages([
-                'payment' => 'Test confirmation is disabled when Stripe provider is active.',
+                'payment' => 'A confirmação manual de teste está desativada quando o pagamento online está ativo.',
             ]);
         }
 
-        $paymentWasMarkedPaid = false;
-        DB::transaction(function () use ($booking, &$paymentWasMarkedPaid): void {
+        $bookingFullyPaid = false;
+        $paidInstallmentType = null;
+        DB::transaction(function () use ($booking, &$bookingFullyPaid, &$paidInstallmentType): void {
             /** @var Booking $lockedBooking */
             $lockedBooking = Booking::query()
                 ->with(['payment'])
@@ -276,29 +311,30 @@ class BookingDashboardController extends Controller
 
             if ($lockedBooking->status === 'CANCELLED') {
                 throw ValidationException::withMessages([
-                    'payment' => 'Cannot pay a cancelled booking.',
+                    'payment' => 'Não é possível pagar uma reserva cancelada.',
                 ]);
             }
 
             if ($lockedBooking->payment === null) {
                 throw ValidationException::withMessages([
-                    'payment' => 'Payment record not found.',
+                    'payment' => 'Não foi encontrado um registo de pagamento para esta reserva.',
                 ]);
             }
 
-            if ($lockedBooking->payment->status === 'PAID') {
+            if (! $this->canAcceptPayment($lockedBooking->payment)) {
                 return;
             }
 
-            $lockedBooking->payment->update([
-                'status' => 'PAID',
-                'paid_at' => now(),
-            ]);
-            $paymentWasMarkedPaid = true;
+            $paidInstallmentType = (string) $lockedBooking->payment->installment_type;
+            $bookingFullyPaid = $this->markCurrentInstallmentAsPaid($lockedBooking->payment);
         });
 
-        $booking->refresh()->load('payment');
-        if ($paymentWasMarkedPaid) {
+        $booking->refresh()->load(['payment', 'user', 'event', 'hotel', 'rate.roomType', 'rate.mealPlan']);
+        if ($paidInstallmentType !== null && $booking->payment !== null) {
+            $invoiceService->issueAndSendForInstallment($booking, $booking->payment, $paidInstallmentType);
+        }
+
+        if ($bookingFullyPaid) {
             $booking->loadMissing(['event', 'hotel']);
             $request->user()->notify(new PaymentConfirmedNotification($booking));
             $this->notifyAdminsBookingConfirmed($booking);
@@ -311,41 +347,53 @@ class BookingDashboardController extends Controller
             metadata: [
                 'booking_id' => $booking->id,
                 'payment_status' => $booking->payment?->status,
+                'display_status' => $this->displayPaymentStatus($booking->payment),
             ],
             request: $request
         );
 
-        return back()->with('success', 'Payment confirmed successfully.');
+        return back()->with('success', 'Pagamento confirmado com sucesso.');
     }
 
-    public function syncStripePayment(Request $request, Booking $booking, AuditLogger $auditLogger): JsonResponse
+    public function syncStripePayment(
+        Request $request,
+        Booking $booking,
+        AuditLogger $auditLogger,
+        InvoiceService $invoiceService
+    ): JsonResponse
     {
         abort_unless($booking->user_id === $request->user()->id, 404);
 
-        if (config('payment.provider') !== 'STRIPE') {
+        if (! $this->isStripeBackedProvider()) {
             throw ValidationException::withMessages([
-                'payment' => 'Stripe sync is only available when Stripe provider is active.',
+                'payment' => 'A sincronização de pagamento só está disponível quando o provedor de pagamento online está ativo.',
             ]);
         }
 
         $booking->load('payment');
         if ($booking->status === 'CANCELLED' || $booking->payment === null) {
             throw ValidationException::withMessages([
-                'payment' => 'This booking is not eligible for payment sync.',
+                'payment' => 'Esta reserva não está elegível para sincronização de pagamento.',
+            ]);
+        }
+
+        if (! $this->canAcceptPayment($booking->payment)) {
+            throw ValidationException::withMessages([
+                'payment' => 'Este pagamento já se encontra regularizado.',
             ]);
         }
 
         $reference = (string) $booking->payment->provider_reference;
         if ($reference === '') {
             throw ValidationException::withMessages([
-                'payment' => 'Payment reference is missing for Stripe sync.',
+                'payment' => 'Falta a referência de pagamento necessária para sincronizar com a Stripe.',
             ]);
         }
 
         $secretKey = trim((string) config('payment.stripe_secret_key', ''));
         if ($secretKey === '') {
             throw ValidationException::withMessages([
-                'payment' => 'Stripe secret key is not configured.',
+                'payment' => 'A configuração da Stripe está incompleta. Contacta o suporte.',
             ]);
         }
 
@@ -355,7 +403,7 @@ class BookingDashboardController extends Controller
 
         if ($response->failed()) {
             throw ValidationException::withMessages([
-                'payment' => 'Unable to sync payment with Stripe right now.',
+                'payment' => 'De momento não foi possível sincronizar o pagamento com a Stripe. Tenta novamente em instantes.',
             ]);
         }
 
@@ -366,13 +414,24 @@ class BookingDashboardController extends Controller
             default => 'PENDING',
         };
 
-        $previousStatus = (string) $booking->payment->status;
-        $booking->payment->update([
-            'status' => $nextStatus,
-            'paid_at' => $nextStatus === 'PAID' ? now() : null,
-        ]);
+        $bookingFullyPaid = false;
+        $paidInstallmentType = null;
+        if ($nextStatus === 'PAID') {
+            $paidInstallmentType = (string) $booking->payment->installment_type;
+            $bookingFullyPaid = $this->markCurrentInstallmentAsPaid($booking->payment);
+        } else {
+            $booking->payment->update([
+                'status' => $nextStatus,
+                'paid_at' => null,
+            ]);
+        }
 
-        if ($nextStatus === 'PAID' && $previousStatus !== 'PAID') {
+        if ($paidInstallmentType !== null) {
+            $booking->loadMissing(['user', 'event', 'hotel', 'rate.roomType', 'rate.mealPlan']);
+            $invoiceService->issueAndSendForInstallment($booking, $booking->payment, $paidInstallmentType);
+        }
+
+        if ($bookingFullyPaid) {
             $booking->loadMissing(['event', 'hotel']);
             $request->user()->notify(new PaymentConfirmedNotification($booking));
             $this->notifyAdminsBookingConfirmed($booking);
@@ -387,13 +446,15 @@ class BookingDashboardController extends Controller
                 'booking_id' => $booking->id,
                 'provider_reference' => $reference,
                 'stripe_status' => $stripeStatus,
-                'payment_status' => $nextStatus,
+                'payment_status' => $booking->payment->status,
+                'display_status' => $this->displayPaymentStatus($booking->payment),
             ],
             request: $request
         );
 
         return response()->json([
-            'status' => $nextStatus,
+            'status' => $booking->payment->status,
+            'display_status' => $this->displayPaymentStatus($booking->payment),
             'stripe_status' => $stripeStatus,
             'paid_at' => $booking->payment->fresh()?->paid_at?->toDateTimeString(),
         ]);
@@ -410,9 +471,98 @@ class BookingDashboardController extends Controller
             ->each(fn (User $admin) => $admin->notify(new AdminBookingConfirmedNotification($booking)));
     }
 
+    private function canAcceptPayment(Payment $payment): bool
+    {
+        return in_array((string) $payment->status, ['PENDING', 'FAILED'], true);
+    }
+
+    private function isStripeBackedProvider(): bool
+    {
+        $provider = strtoupper((string) config('payment.provider', 'STRIPE_MOCK'));
+
+        return in_array($provider, ['STRIPE', 'PAYPAL', 'REVOLUT'], true);
+    }
+
+    private function displayPaymentStatus(?Payment $payment): ?string
+    {
+        if ($payment === null) {
+            return null;
+        }
+
+        if (
+            $payment->installment_type === Payment::INSTALLMENT_BALANCE
+            && $payment->deposit_paid_at !== null
+            && $payment->status === 'PENDING'
+        ) {
+            return 'PARTIALLY_PAID';
+        }
+
+        return $payment->status;
+    }
+
+    private function markCurrentInstallmentAsPaid(Payment $payment): bool
+    {
+        if ($payment->installment_type === Payment::INSTALLMENT_DEPOSIT) {
+            $hasBalance = ((float) ($payment->balance_amount ?? 0)) > 0;
+            if (! $hasBalance) {
+                $payment->update([
+                    'status' => 'PAID',
+                    'deposit_paid_at' => now(),
+                    'paid_at' => now(),
+                ]);
+
+                return true;
+            }
+
+            $payment->update([
+                'status' => 'PENDING',
+                'installment_type' => Payment::INSTALLMENT_BALANCE,
+                'deposit_paid_at' => now(),
+                'amount' => (float) $payment->balance_amount,
+                'due_date' => $payment->balance_due_date,
+                'provider_reference' => null,
+                'paid_at' => null,
+            ]);
+
+            return false;
+        }
+
+        if ($payment->installment_type === Payment::INSTALLMENT_BALANCE) {
+            $payment->update([
+                'status' => 'PAID',
+                'balance_paid_at' => now(),
+                'paid_at' => now(),
+            ]);
+
+            return true;
+        }
+
+        $payment->update([
+            'status' => 'PAID',
+            'paid_at' => now(),
+        ]);
+
+        return true;
+    }
+
     private function canDeleteBooking(Booking $booking): bool
     {
         return $booking->status === 'CANCELLED'
             || $booking->check_out->lt(now()->startOfDay());
+    }
+
+    private function canCancelBookingByPolicy(Booking $booking): bool
+    {
+        if ($booking->status === 'CANCELLED') {
+            return false;
+        }
+
+        $policy = (string) $booking->rate->cancellation_policy;
+        if ($policy === Rate::CANCELLATION_POLICY_FREE) {
+            return $booking->rate->cancellation_deadline !== null
+                && now()->lessThanOrEqualTo($booking->rate->cancellation_deadline);
+        }
+
+        return true;
     }
 }

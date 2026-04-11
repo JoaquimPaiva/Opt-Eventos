@@ -31,7 +31,10 @@ class RateController extends Controller
                 'sale_price' => (float) $rate->sale_price,
                 'currency' => $rate->currency,
                 'stock' => $rate->stock,
-                'cancellation_deadline' => $rate->cancellation_deadline->toDateTimeString(),
+                'cancellation_policy' => $rate->cancellation_policy,
+                'deposit_amount' => $rate->deposit_amount !== null ? (float) $rate->deposit_amount : null,
+                'balance_due_days_before_checkin' => $rate->balance_due_days_before_checkin,
+                'cancellation_deadline' => $rate->cancellation_deadline?->toDateTimeString(),
                 'is_active' => $rate->is_active,
             ])
             ->values();
@@ -50,6 +53,10 @@ class RateController extends Controller
     {
         $data = $request->validated();
         $data['currency'] = strtoupper((string) $data['currency']);
+        if (($data['cancellation_policy'] ?? null) !== Rate::CANCELLATION_POLICY_DEPOSIT_NON_REFUNDABLE) {
+            $data['deposit_amount'] = null;
+            $data['balance_due_days_before_checkin'] = null;
+        }
 
         Rate::query()->create($data);
 
@@ -69,7 +76,12 @@ class RateController extends Controller
                 'sale_price' => (string) $rate->sale_price,
                 'currency' => $rate->currency,
                 'stock' => $rate->stock,
-                'cancellation_deadline' => $rate->cancellation_deadline->format('Y-m-d\TH:i'),
+                'cancellation_policy' => $rate->cancellation_policy,
+                'deposit_amount' => $rate->deposit_amount !== null ? (string) $rate->deposit_amount : '',
+                'balance_due_days_before_checkin' => $rate->balance_due_days_before_checkin !== null
+                    ? (string) $rate->balance_due_days_before_checkin
+                    : '',
+                'cancellation_deadline' => $rate->cancellation_deadline?->format('Y-m-d\TH:i') ?? '',
                 'is_active' => $rate->is_active,
             ],
         ]);
@@ -79,6 +91,10 @@ class RateController extends Controller
     {
         $data = $request->validated();
         $data['currency'] = strtoupper((string) $data['currency']);
+        if (($data['cancellation_policy'] ?? null) !== Rate::CANCELLATION_POLICY_DEPOSIT_NON_REFUNDABLE) {
+            $data['deposit_amount'] = null;
+            $data['balance_due_days_before_checkin'] = null;
+        }
 
         $rate->update($data);
 

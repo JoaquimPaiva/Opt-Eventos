@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { emitAppErrorToast } from '@/Components/ErrorToasts';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { FormEvent, useMemo, useState } from 'react';
@@ -13,6 +14,8 @@ interface UserItem {
     hotel_id?: number | null;
     hotel_name?: string | null;
     created_at?: string | null;
+    nationality?: string | null;
+    nif?: string | null;
 }
 
 interface HotelOption {
@@ -79,7 +82,7 @@ export default function AdminUsersIndex({
     const saveUserRole = (user: UserItem) => {
         const draft = drafts[user.id] ?? { role: user.role, hotel_id: user.hotel_id ? String(user.hotel_id) : '' };
         if (draft.role === 'HOTEL' && draft.hotel_id === '') {
-            window.alert('Seleciona um hotel para utilizadores com função HOTEL.');
+            emitAppErrorToast('Seleciona um hotel para utilizadores com função HOTEL.');
             return;
         }
 
@@ -139,8 +142,8 @@ export default function AdminUsersIndex({
                         </button>
                     </form>
 
-                    <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                        <table className="w-full min-w-[980px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">
@@ -171,6 +174,12 @@ export default function AdminUsersIndex({
                                                 </p>
                                                 <p className="text-gray-500">
                                                     {user.email}
+                                                </p>
+                                                <p className="text-gray-500">
+                                                    {user.nationality ?? 'Nacionalidade não definida'}
+                                                </p>
+                                                <p className="text-gray-500">
+                                                    NIF: {user.nif ?? 'N/D'}
                                                 </p>
                                                 {isSelfAdmin ? (
                                                     <p className="mt-1 text-xs text-gray-500">A tua conta</p>

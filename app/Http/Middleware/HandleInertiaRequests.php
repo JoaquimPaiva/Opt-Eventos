@@ -37,6 +37,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
             ],
             'web_push' => [
                 'enabled' => filled(config('services.web_push.public_key')) && filled(config('services.web_push.private_key')) && filled(config('services.web_push.subject')),
@@ -58,7 +59,7 @@ class HandleInertiaRequests extends Middleware
                     ->get()
                     ->map(fn (DatabaseNotification $notification) => [
                         'id' => $notification->id,
-                        'title' => (string) data_get($notification->data, 'title', 'Notification'),
+                        'title' => (string) data_get($notification->data, 'title', 'Notificação'),
                         'message' => (string) data_get($notification->data, 'message', ''),
                         'url' => (string) data_get($notification->data, 'url', route('dashboard')),
                         'read_at' => $notification->read_at?->toDateTimeString(),

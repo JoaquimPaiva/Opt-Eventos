@@ -30,6 +30,8 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'nationality' => $user->nationality,
+                'nif' => $user->nif,
                 'role' => $user->role,
                 'hotel_id' => $user->hotel_id,
                 'hotel_name' => $user->hotel?->name,
@@ -63,7 +65,7 @@ class UserController extends Controller
         $actor = $request->user();
 
         if ($actor !== null && $actor->id === $user->id && $targetRole !== 'ADMIN') {
-            return back()->with('success', 'You cannot remove your own admin role.');
+            return back()->with('success', 'Não podes remover o teu próprio perfil de administrador.');
         }
 
         $user->update([
@@ -71,6 +73,6 @@ class UserController extends Controller
             'hotel_id' => $targetRole === 'HOTEL' ? $targetHotelId : null,
         ]);
 
-        return back()->with('success', "User {$user->email} role updated to {$targetRole}.");
+        return back()->with('success', "Função do utilizador {$user->email} atualizada para {$targetRole}.");
     }
 }

@@ -6,12 +6,14 @@ interface EventItem {
     id: number;
     name: string;
     slug: string;
+    cover_image_url: string | null;
     location: string;
-    start_date: string;
-    end_date: string;
-    booking_start: string;
-    booking_end: string;
+    start_date: string | null;
+    end_date: string | null;
+    booking_start: string | null;
+    booking_end: string | null;
     is_active: boolean;
+    is_featured: boolean;
 }
 
 interface EventsIndexProps {
@@ -55,8 +57,8 @@ export default function EventsIndex({ events }: EventsIndexProps) {
                         </div>
                     ) : null}
 
-                    <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                        <table className="w-full min-w-[900px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Evento</th>
@@ -70,15 +72,18 @@ export default function EventsIndex({ events }: EventsIndexProps) {
                                 {events.map((event) => (
                                     <tr key={event.id}>
                                         <td className="px-4 py-3">
+                                            {event.cover_image_url ? (
+                                                <img src={event.cover_image_url} alt={event.name} className="mb-2 h-16 w-28 rounded-md object-cover" />
+                                            ) : null}
                                             <p className="font-medium text-gray-900">{event.name}</p>
                                             <p className="text-gray-500">{event.location}</p>
                                             <p className="text-xs text-gray-400">{event.slug}</p>
                                         </td>
                                         <td className="px-4 py-3 text-gray-700">
-                                            {event.start_date} até {event.end_date}
+                                            {event.start_date ?? 'data a defenir'} até {event.end_date ?? 'data a defenir'}
                                         </td>
                                         <td className="px-4 py-3 text-gray-700">
-                                            {event.booking_start} até {event.booking_end}
+                                            {event.booking_start ?? 'data a defenir'} até {event.booking_end ?? 'data a defenir'}
                                         </td>
                                         <td className="px-4 py-3">
                                             <span
@@ -90,9 +95,31 @@ export default function EventsIndex({ events }: EventsIndexProps) {
                                             >
                                                 {event.is_active ? 'Ativo' : 'Inativo'}
                                             </span>
+                                            <div className="mt-2">
+                                                <span
+                                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                                                        event.is_featured
+                                                            ? 'bg-amber-100 text-amber-700'
+                                                            : 'bg-slate-100 text-slate-600'
+                                                    }`}
+                                                >
+                                                    {event.is_featured ? 'Destaque' : 'Normal'}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="inline-flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
+                                                        event.is_featured
+                                                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                                    }`}
+                                                    onClick={() => router.patch(route('admin.events.toggle-featured', event.id))}
+                                                >
+                                                    {event.is_featured ? 'Remover destaque' : 'Adicionar destaque'}
+                                                </button>
                                                 <Link
                                                     href={route('admin.events.edit', event.id)}
                                                     className="rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"

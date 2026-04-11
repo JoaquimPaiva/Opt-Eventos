@@ -14,7 +14,7 @@ class EnsureUserIsHotel
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()?->role !== 'HOTEL') {
-            abort(403);
+            abort(403, 'Não tens permissões para aceder à área de hotel.');
         }
 
         return $next($request);

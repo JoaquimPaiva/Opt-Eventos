@@ -25,7 +25,9 @@ class HotelBookingCreatedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $booking = $this->booking->loadMissing(['user', 'event', 'hotel', 'payment']);
+        $booking = $this->booking->loadMissing(['user', 'event', 'hotel', 'supplierPayment']);
+        $supplierAmount = (float) ($booking->supplierPayment?->amount ?? 0);
+        $supplierCurrency = $booking->supplierPayment?->currency ?? 'EUR';
 
         return (new MailMessage)
             ->subject("Nova reserva para {$booking->hotel->name}")
@@ -34,7 +36,7 @@ class HotelBookingCreatedNotification extends Notification
             ->line("Reserva: {$booking->id}")
             ->line("Cliente: {$booking->user->name} ({$booking->user->email})")
             ->line("Evento: {$booking->event->name}")
-            ->line("Montante: {$booking->total_price} ".($booking->payment?->currency ?? 'EUR'))
+            ->line("Valor a receber: {$supplierAmount} {$supplierCurrency}")
             ->action('Abrir reservas do hotel', route('hotel.bookings.index', ['search' => $booking->id]));
     }
 

@@ -11,7 +11,7 @@ class PushSubscriptionController extends Controller
     {
         $user = $request->user();
         if ($user === null) {
-            abort(401);
+            abort(401, 'É necessário iniciar sessão para ativar notificações.');
         }
 
         $validated = $request->validate([
@@ -37,7 +37,7 @@ class PushSubscriptionController extends Controller
     {
         $user = $request->user();
         if ($user === null) {
-            abort(401);
+            abort(401, 'É necessário iniciar sessão para gerir notificações.');
         }
 
         $validated = $request->validate([

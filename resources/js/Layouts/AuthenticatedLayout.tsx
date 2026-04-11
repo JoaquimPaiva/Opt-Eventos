@@ -1,7 +1,9 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
 import Dropdown from "@/Components/Dropdown";
+import ErrorToasts from "@/Components/ErrorToasts";
 import NavLink from "@/Components/NavLink";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink";
+import { assetUrl } from "@/lib/assetUrl";
 import { PageProps } from "@/types";
 import axios from "axios";
 import { Link, usePage } from "@inertiajs/react";
@@ -262,6 +264,7 @@ export default function Authenticated({
 
     return (
         <div className="min-h-screen bg-gray-100">
+            <ErrorToasts />
             <nav className="border-b border-gray-100 bg-white">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
@@ -271,7 +274,7 @@ export default function Authenticated({
                                     {/* <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" /> */}
                                     <img
                                         className="max-w-[100px] sm:max-w-[150px]"
-                                        src="../optviagens.png"
+                                        src={assetUrl("/optviagens.png")}
                                         alt="OptViagens Logo"
                                     />
                                 </Link>
@@ -288,12 +291,12 @@ export default function Authenticated({
                                         >
                                             Painel
                                         </NavLink>
-                                        <NavLink
+                                        {/* <NavLink
                                             href={route("checkout")}
                                             active={route().current("checkout")}
                                         >
                                             Reservar
-                                        </NavLink>
+                                        </NavLink> */}
                                         <NavLink
                                             href={route(
                                                 "dashboard.bookings.index",
@@ -307,6 +310,14 @@ export default function Authenticated({
                                     </>
                                 ) : (
                                     <>
+                                        <NavLink
+                                            href={route("hotel.dashboard")}
+                                            active={route().current(
+                                                "hotel.dashboard",
+                                            )}
+                                        >
+                                            Painel Hotel
+                                        </NavLink>
                                         <NavLink
                                             href={route("hotel.bookings.index")}
                                             active={route().current(
@@ -648,6 +659,12 @@ export default function Authenticated({
                             </>
                         ) : (
                             <>
+                                <ResponsiveNavLink
+                                    href={route("hotel.dashboard")}
+                                    active={route().current("hotel.dashboard")}
+                                >
+                                    Painel Hotel
+                                </ResponsiveNavLink>
                                 <ResponsiveNavLink
                                     href={route("hotel.bookings.index")}
                                     active={route().current("hotel.bookings.*")}

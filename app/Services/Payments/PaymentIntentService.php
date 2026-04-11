@@ -21,10 +21,10 @@ class PaymentIntentService
     {
         $provider = strtoupper((string) config('payment.provider', 'STRIPE_MOCK'));
 
-        if ($provider === 'STRIPE') {
+        if ($this->isStripeBackedProvider($provider)) {
             $secretKey = trim((string) config('payment.stripe_secret_key', ''));
             if ($secretKey === '') {
-                throw new RuntimeException('Stripe secret key is not configured.');
+                throw new RuntimeException('A configuração de pagamento online está incompleta. Contacta o suporte.');
             }
 
             $response = Http::asForm()
@@ -38,13 +38,13 @@ class PaymentIntentService
                 ]);
 
             if ($response->failed()) {
-                throw new RuntimeException('Failed to create Stripe PaymentIntent.');
+                throw new RuntimeException('Não foi possível iniciar o pagamento online. Tenta novamente dentro de momentos.');
             }
 
             $paymentReference = (string) ($response->json('id') ?? '');
             $clientSecret = (string) ($response->json('client_secret') ?? '');
             if ($paymentReference === '' || $clientSecret === '') {
-                throw new RuntimeException('Invalid Stripe PaymentIntent response.');
+                throw new RuntimeException('Recebemos uma resposta inválida do provedor de pagamento. Tenta novamente.');
             }
 
             return [
@@ -65,5 +65,10 @@ class PaymentIntentService
             'amount' => $amount,
             'currency' => strtoupper($currency),
         ];
+    }
+
+    private function isStripeBackedProvider(string $provider): bool
+    {
+        return in_array($provider, ['STRIPE', 'PAYPAL', 'REVOLUT'], true);
     }
 }

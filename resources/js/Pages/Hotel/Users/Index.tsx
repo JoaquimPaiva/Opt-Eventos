@@ -105,8 +105,8 @@ export default function HotelUsersIndex({ users }: HotelUsersProps) {
                             </div>
                         ) : null}
 
-                        <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
-                            <table className="min-w-full divide-y divide-slate-200 text-sm">
+                        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                            <table className="w-full min-w-[860px] divide-y divide-slate-200 text-sm">
                                 <thead className="bg-slate-50">
                                     <tr>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-600">Nome</th>

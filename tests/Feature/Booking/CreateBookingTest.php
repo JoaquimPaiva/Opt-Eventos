@@ -282,4 +282,56 @@ class CreateBookingTest extends TestCase
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['payment']);
     }
+
+    public function test_checkout_accepts_event_without_booking_window_dates(): void
+    {
+        $user = User::factory()->create();
+        $event = Event::factory()->create([
+            'booking_start' => null,
+            'booking_end' => null,
+            'is_active' => true,
+        ]);
+        $hotel = Hotel::factory()->create(['event_id' => $event->id]);
+        $roomType = RoomType::factory()->create(['name' => 'single', 'max_guests' => 2]);
+        $mealPlan = MealPlan::factory()->create(['name' => 'breakfast']);
+        $rate = Rate::factory()->create([
+            'hotel_id' => $hotel->id,
+            'room_type_id' => $roomType->id,
+            'meal_plan_id' => $mealPlan->id,
+            'sale_price' => 150,
+            'stock' => 2,
+            'is_active' => true,
+        ]);
+
+        $intentResponse = $this->actingAs($user)
+            ->postJson(route('checkout.payment-intent'), [
+                'rate_id' => $rate->id,
+                'check_in' => '2026-07-10',
+                'check_out' => '2026-07-12',
+                'guests' => 2,
+            ]);
+
+        $intentResponse->assertCreated();
+        $intentResponse->assertJson([
+            'amount' => 300.0,
+            'currency' => 'EUR',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('checkout.store'), [
+                'rate_id' => $rate->id,
+                'check_in' => '2026-07-10',
+                'check_out' => '2026-07-12',
+                'guests' => 2,
+                'payment_reference' => 'pi_test_checkout_null_window_123',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('bookings', [
+            'user_id' => $user->id,
+            'event_id' => $event->id,
+            'rate_id' => $rate->id,
+            'nights' => 2,
+        ]);
+    }
 }

@@ -5,6 +5,9 @@ type EventFormData = {
     name: string;
     slug: string;
     description: string;
+    cover_image: File | null;
+    cover_image_url: string | null;
+    remove_cover_image: boolean;
     location: string;
     latitude: string;
     longitude: string;
@@ -34,6 +37,8 @@ export default function EventForm({
     onSubmit,
     submitLabel,
 }: EventFormProps) {
+    const unresolvedDateText = 'data a defenir';
+
     return (
         <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -63,6 +68,35 @@ export default function EventForm({
                     rows={3}
                     className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 />
+            </Field>
+
+            <Field label="Imagem de capa (opcional)" error={errors.cover_image}>
+                <div className="space-y-3">
+                    {data.cover_image_url ? (
+                        <div className="overflow-hidden rounded-lg border border-slate-200">
+                            <img src={data.cover_image_url} alt="Capa atual do evento" className="h-40 w-full object-cover" />
+                        </div>
+                    ) : null}
+
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => setData('cover_image', event.target.files?.[0] ?? null)}
+                        className="w-full rounded-md border-gray-300 text-sm shadow-sm file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+                    />
+
+                    {data.cover_image_url ? (
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                                type="checkbox"
+                                checked={data.remove_cover_image}
+                                onChange={(event) => setData('remove_cover_image', event.target.checked)}
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            Remover imagem atual
+                        </label>
+                    ) : null}
+                </div>
             </Field>
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -96,41 +130,53 @@ export default function EventForm({
 
             <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Data de início" error={errors.start_date}>
-                    <input
-                        type="date"
-                        value={data.start_date}
-                        onChange={(event) => setData('start_date', event.target.value)}
-                        className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    />
+                    <>
+                        <input
+                            type="date"
+                            value={data.start_date}
+                            onChange={(event) => setData('start_date', event.target.value)}
+                            className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                        {!data.start_date ? <p className="mt-1 text-xs text-gray-500">{unresolvedDateText}</p> : null}
+                    </>
                 </Field>
 
                 <Field label="Data de fim" error={errors.end_date}>
-                    <input
-                        type="date"
-                        value={data.end_date}
-                        onChange={(event) => setData('end_date', event.target.value)}
-                        className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    />
+                    <>
+                        <input
+                            type="date"
+                            value={data.end_date}
+                            onChange={(event) => setData('end_date', event.target.value)}
+                            className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                        {!data.end_date ? <p className="mt-1 text-xs text-gray-500">{unresolvedDateText}</p> : null}
+                    </>
                 </Field>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Abertura de reservas" error={errors.booking_start}>
-                    <input
-                        type="date"
-                        value={data.booking_start}
-                        onChange={(event) => setData('booking_start', event.target.value)}
-                        className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    />
+                    <>
+                        <input
+                            type="date"
+                            value={data.booking_start}
+                            onChange={(event) => setData('booking_start', event.target.value)}
+                            className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                        {!data.booking_start ? <p className="mt-1 text-xs text-gray-500">{unresolvedDateText}</p> : null}
+                    </>
                 </Field>
 
                 <Field label="Fim de reservas" error={errors.booking_end}>
-                    <input
-                        type="date"
-                        value={data.booking_end}
-                        onChange={(event) => setData('booking_end', event.target.value)}
-                        className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    />
+                    <>
+                        <input
+                            type="date"
+                            value={data.booking_end}
+                            onChange={(event) => setData('booking_end', event.target.value)}
+                            className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                        {!data.booking_end ? <p className="mt-1 text-xs text-gray-500">{unresolvedDateText}</p> : null}
+                    </>
                 </Field>
             </div>
 

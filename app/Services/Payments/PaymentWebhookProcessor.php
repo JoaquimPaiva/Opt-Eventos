@@ -7,11 +7,15 @@ use App\Models\User;
 use App\Notifications\AdminBookingConfirmedNotification;
 use App\Notifications\PaymentConfirmedNotification;
 use App\Services\Audit\AuditLogger;
+use App\Services\Billing\InvoiceService;
 use Illuminate\Support\Facades\DB;
 
 class PaymentWebhookProcessor
 {
-    public function __construct(private readonly AuditLogger $auditLogger)
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+        private readonly InvoiceService $invoiceService
+    )
     {
     }
 
@@ -39,13 +43,34 @@ class PaymentWebhookProcessor
                 return;
             }
 
+            $matchedInstallment = null;
             $payment = Payment::query()
                 ->where('provider_reference', $reference)
                 ->where('provider', strtoupper($provider))
                 ->first();
 
             if ($payment !== null) {
-                $this->applyStatusFromEvent($payment, $eventType, $provider);
+                $matchedInstallment = $payment->installment_type;
+            } else {
+                $payment = Payment::query()
+                    ->where('deposit_provider_reference', $reference)
+                    ->where('provider', strtoupper($provider))
+                    ->first();
+                if ($payment !== null) {
+                    $matchedInstallment = Payment::INSTALLMENT_DEPOSIT;
+                } else {
+                    $payment = Payment::query()
+                        ->where('balance_provider_reference', $reference)
+                        ->where('provider', strtoupper($provider))
+                        ->first();
+                    if ($payment !== null) {
+                        $matchedInstallment = Payment::INSTALLMENT_BALANCE;
+                    }
+                }
+            }
+
+            if ($payment !== null) {
+                $this->applyStatusFromEvent($payment, $eventType, $provider, $matchedInstallment);
             }
 
             DB::table('payment_webhook_events')->insert([
@@ -94,7 +119,12 @@ class PaymentWebhookProcessor
         return (string) data_get($event, 'data.reference', '');
     }
 
-    private function applyStatusFromEvent(Payment $payment, string $eventType, string $provider): void
+    private function applyStatusFromEvent(
+        Payment $payment,
+        string $eventType,
+        string $provider,
+        ?string $matchedInstallment
+    ): void
     {
         $normalizedType = strtolower($eventType);
 
@@ -111,13 +141,28 @@ class PaymentWebhookProcessor
             return;
         }
 
-        $previousStatus = (string) $payment->status;
-        $payment->update([
-            'status' => $newStatus,
-            'paid_at' => in_array($newStatus, ['PAID', 'REFUNDED'], true) ? now() : null,
-        ]);
+        if ($newStatus !== 'PAID' && $this->isInstallmentAlreadySettled($payment, $matchedInstallment)) {
+            return;
+        }
 
-        if ($newStatus === 'PAID' && $previousStatus !== 'PAID') {
+        $bookingFullyPaid = false;
+        $paidInstallmentType = null;
+        if ($newStatus === 'PAID') {
+            $paidInstallmentType = $matchedInstallment ?? (string) $payment->installment_type;
+            $bookingFullyPaid = $this->markInstallmentAsPaid($payment, $matchedInstallment);
+        } else {
+            $payment->update([
+                'status' => $newStatus,
+                'paid_at' => in_array($newStatus, ['REFUNDED'], true) ? now() : null,
+            ]);
+        }
+
+        if ($paidInstallmentType !== null && $payment->booking !== null) {
+            $payment->booking->loadMissing(['user', 'event', 'hotel', 'rate.roomType', 'rate.mealPlan', 'payment']);
+            $this->invoiceService->issueAndSendForInstallment($payment->booking, $payment, $paidInstallmentType);
+        }
+
+        if ($bookingFullyPaid) {
             $payment->loadMissing('booking.user');
             $payment->booking?->user?->notify(new PaymentConfirmedNotification($payment->booking));
             $this->notifyAdminsBookingConfirmed($payment);
@@ -146,5 +191,70 @@ class PaymentWebhookProcessor
             ->whereNotNull('email')
             ->get()
             ->each(fn (User $admin) => $admin->notify(new AdminBookingConfirmedNotification($payment->booking)));
+    }
+
+    private function markInstallmentAsPaid(Payment $payment, ?string $installment): bool
+    {
+        $targetInstallment = $installment ?? $payment->installment_type;
+        if ($targetInstallment === Payment::INSTALLMENT_DEPOSIT) {
+            if ($payment->deposit_paid_at !== null) {
+                return $payment->status === 'PAID';
+            }
+
+            $hasBalance = ((float) ($payment->balance_amount ?? 0)) > 0;
+            if (! $hasBalance) {
+                $payment->update([
+                    'status' => 'PAID',
+                    'deposit_paid_at' => now(),
+                    'paid_at' => now(),
+                ]);
+
+                return true;
+            }
+
+            $payment->update([
+                'status' => 'PENDING',
+                'installment_type' => Payment::INSTALLMENT_BALANCE,
+                'deposit_paid_at' => now(),
+                'amount' => (float) $payment->balance_amount,
+                'due_date' => $payment->balance_due_date,
+                'provider_reference' => null,
+                'paid_at' => null,
+            ]);
+
+            return false;
+        }
+
+        if ($targetInstallment === Payment::INSTALLMENT_BALANCE) {
+            if ($payment->balance_paid_at !== null) {
+                return $payment->status === 'PAID';
+            }
+
+            $payment->update([
+                'status' => 'PAID',
+                'balance_paid_at' => now(),
+                'paid_at' => now(),
+            ]);
+
+            return true;
+        }
+
+        $payment->update([
+            'status' => 'PAID',
+            'paid_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    private function isInstallmentAlreadySettled(Payment $payment, ?string $installment): bool
+    {
+        $targetInstallment = $installment ?? $payment->installment_type;
+
+        return match ($targetInstallment) {
+            Payment::INSTALLMENT_DEPOSIT => $payment->deposit_paid_at !== null,
+            Payment::INSTALLMENT_BALANCE => $payment->balance_paid_at !== null,
+            default => $payment->paid_at !== null,
+        };
     }
 }

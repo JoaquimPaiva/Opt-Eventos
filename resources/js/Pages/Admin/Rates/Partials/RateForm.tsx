@@ -12,6 +12,9 @@ type RateFormData = {
     sale_price: string;
     currency: string;
     stock: string;
+    cancellation_policy: string;
+    deposit_amount: string;
+    balance_due_days_before_checkin: string;
     cancellation_deadline: string;
     is_active: boolean;
 };
@@ -41,6 +44,8 @@ export default function RateForm({
     onSubmit,
     submitLabel,
 }: RateFormProps) {
+    const isDepositPolicy = data.cancellation_policy === 'DEPOSIT_NON_REFUNDABLE';
+
     return (
         <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
@@ -131,6 +136,44 @@ export default function RateForm({
                     />
                 </Field>
             </div>
+
+            <Field label="Modelo de cancelamento/pagamento" error={errors.cancellation_policy}>
+                <select
+                    value={data.cancellation_policy}
+                    onChange={(event) => setData('cancellation_policy', event.target.value)}
+                    className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                    <option value="FREE_CANCELLATION">Cancelamento gratuito</option>
+                    <option value="NON_REFUNDABLE">Tarifa não reembolsável</option>
+                    <option value="DEPOSIT_NON_REFUNDABLE">Pagamento de sinal não reembolsável</option>
+                </select>
+            </Field>
+
+            {isDepositPolicy ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Valor do sinal" error={errors.deposit_amount}>
+                        <input
+                            type="number"
+                            min={0.01}
+                            step="0.01"
+                            value={data.deposit_amount}
+                            onChange={(event) => setData('deposit_amount', event.target.value)}
+                            className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                    </Field>
+
+                    <Field label="Restante até X dias antes do check-in" error={errors.balance_due_days_before_checkin}>
+                        <input
+                            type="number"
+                            min={1}
+                            max={365}
+                            value={data.balance_due_days_before_checkin}
+                            onChange={(event) => setData('balance_due_days_before_checkin', event.target.value)}
+                            className="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                    </Field>
+                </div>
+            ) : null}
 
             <Field label="Prazo de cancelamento" error={errors.cancellation_deadline}>
                 <input

@@ -27,13 +27,13 @@ export default function Dashboard() {
                             <div className="space-y-2 p-6 text-gray-900">
                                 <h3 className="text-lg font-semibold">Criar nova reserva</h3>
                                 <p className="text-sm text-gray-600">
-                                    Escolhe evento, hotel e regime para avançar para checkout com pagamento preparado.
+                                    Começa na home a escolher datas e evento para veres os hotéis disponíveis e concluir a reserva.
                                 </p>
                                 <Link
-                                    href={route('checkout')}
+                                    href="/"
                                     className="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black"
                                 >
-                                    Ir para checkout
+                                    Iniciar nova reserva
                                 </Link>
                             </div>
                         </div>

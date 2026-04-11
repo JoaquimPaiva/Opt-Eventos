@@ -12,7 +12,7 @@ interface BookingItem {
     check_out: string;
     room_type: string;
     meal_plan: string;
-    total_price: number;
+    supplier_amount: number;
     currency: string;
     booking_status: string;
     payment_status?: string | null;
@@ -52,7 +52,7 @@ export default function HotelBookingsIndex({ bookings, filters }: HotelBookingsP
                     <p className="text-sm text-gray-600">Consulta as reservas associadas ao teu hotel.</p>
 
                     <div className="rounded-lg bg-white p-4 shadow-sm">
-                        <form onSubmit={applyFilters} className="grid gap-3 md:grid-cols-4">
+                        <form onSubmit={applyFilters} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             <input
                                 type="text"
                                 placeholder="Pesquisar por id, cliente ou evento"
@@ -93,14 +93,14 @@ export default function HotelBookingsIndex({ bookings, filters }: HotelBookingsP
                         </form>
                     </div>
 
-                    <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                        <table className="w-full min-w-[820px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Reserva</th>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Cliente</th>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Estadia</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Montante</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Valor a receber</th>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Estado</th>
                                 </tr>
                             </thead>
@@ -121,7 +121,7 @@ export default function HotelBookingsIndex({ bookings, filters }: HotelBookingsP
                                             {booking.check_in} ate {booking.check_out}
                                         </td>
                                         <td className="px-4 py-3 text-gray-700">
-                                            {booking.total_price} {booking.currency}
+                                            {booking.supplier_amount} {booking.currency}
                                         </td>
                                         <td className="px-4 py-3">
                                             <p className="text-xs font-semibold uppercase text-gray-700">

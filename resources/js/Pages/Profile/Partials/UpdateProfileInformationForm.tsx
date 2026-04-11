@@ -4,7 +4,43 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Transition } from '@headlessui/react';
 import { Link, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useMemo } from 'react';
+
+function buildNationalityOptions(): string[] {
+    const fallbackRegions = ['Portugal', 'Brasil', 'Espanha', 'França', 'Alemanha', 'Reino Unido', 'Estados Unidos'];
+
+    if (typeof Intl.DisplayNames === 'undefined') {
+        return fallbackRegions;
+    }
+
+    const displayNames = new Intl.DisplayNames(['pt-PT', 'pt'], { type: 'region' });
+    const regionNames = new Set<string>();
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    for (const first of letters) {
+        for (const second of letters) {
+            const regionCode = `${first}${second}`;
+            const name = displayNames.of(regionCode);
+
+            if (!name || name === regionCode) {
+                continue;
+            }
+
+            const normalizedName = name.toLowerCase();
+            if (normalizedName.includes('desconhecida') || normalizedName.includes('região desconhecida')) {
+                continue;
+            }
+
+            regionNames.add(name);
+        }
+    }
+
+    if (regionNames.size === 0) {
+        return fallbackRegions;
+    }
+
+    return Array.from(regionNames).sort((a, b) => a.localeCompare(b, 'pt-PT'));
+}
 
 export default function UpdateProfileInformation({
     mustVerifyEmail,
@@ -16,11 +52,14 @@ export default function UpdateProfileInformation({
     className?: string;
 }) {
     const user = usePage().props.auth.user;
+    const nationalityOptions = useMemo(() => buildNationalityOptions(), []);
 
     const { data, setData, patch, errors, processing, recentlySuccessful } =
         useForm({
             name: user.name,
             email: user.email,
+            nationality: user.nationality ?? '',
+            nif: user.nif ?? '',
         });
 
     const submit: FormEventHandler = (e) => {
@@ -72,6 +111,39 @@ export default function UpdateProfileInformation({
                     />
 
                     <InputError className="mt-2" message={errors.email} />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="nationality" value="Nacionalidade" />
+                    <select
+                        id="nationality"
+                        name="nationality"
+                        value={data.nationality}
+                        className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        onChange={(e) => setData('nationality', e.target.value)}
+                    >
+                        <option value="">Seleciona a nacionalidade</option>
+                        {nationalityOptions.map((nationality) => (
+                            <option key={nationality} value={nationality}>
+                                {nationality}
+                            </option>
+                        ))}
+                    </select>
+
+                    <InputError className="mt-2" message={errors.nationality} />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="nif" value="NIF (opcional)" />
+
+                    <TextInput
+                        id="nif"
+                        className="mt-1 block w-full"
+                        value={data.nif}
+                        onChange={(e) => setData('nif', e.target.value)}
+                    />
+
+                    <InputError className="mt-2" message={errors.nif} />
                 </div>
 
                 {mustVerifyEmail && user.email_verified_at === null && (

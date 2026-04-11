@@ -7,6 +7,8 @@ interface BookingItem {
     id: string;
     customer_name: string;
     customer_email: string;
+    customer_nationality?: string | null;
+    customer_nif?: string | null;
     event_name: string;
     hotel_name: string;
     check_in: string;
@@ -189,8 +191,8 @@ export default function AdminBookingsIndex({
                         </form>
                     </div>
 
-                    <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                        <table className="w-full min-w-[1080px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-semibold text-gray-600">
@@ -237,6 +239,12 @@ export default function AdminBookingsIndex({
                                             </p>
                                             <p className="text-gray-500">
                                                 {booking.customer_email}
+                                            </p>
+                                            <p className="text-gray-500">
+                                                {booking.customer_nationality ?? 'Nacionalidade: N/D'}
+                                            </p>
+                                            <p className="text-gray-500">
+                                                NIF: {booking.customer_nif ?? 'N/D'}
                                             </p>
                                         </td>
                                         <td className="px-4 py-3 text-gray-700">

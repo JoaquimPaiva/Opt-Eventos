@@ -16,8 +16,8 @@ interface RateOption {
     sale_price: number;
     currency: string;
     stock: number;
-    booking_start: string;
-    booking_end: string;
+    booking_start: string | null;
+    booking_end: string | null;
     max_guests: number;
 }
 
@@ -121,7 +121,8 @@ export default function Checkout({ rates }: CheckoutProps) {
     const selectedImage = selectedImages[activeImageIndex] ?? null;
     const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
     const isBookingOpenToday = selectedRate
-        ? today >= selectedRate.booking_start && today <= selectedRate.booking_end
+        ? (!selectedRate.booking_start || today >= selectedRate.booking_start)
+            && (!selectedRate.booking_end || today <= selectedRate.booking_end)
         : false;
     const nights = useMemo(() => {
         if (!data.check_in || !data.check_out) {
@@ -190,7 +191,7 @@ export default function Checkout({ rates }: CheckoutProps) {
 
             const paymentReference = String(response.data.payment_reference ?? '');
             if (paymentReference === '') {
-                throw new Error('Missing payment reference');
+                throw new Error('Referência de pagamento em falta');
             }
 
             setPreparedReference(paymentReference);
@@ -292,7 +293,7 @@ export default function Checkout({ rates }: CheckoutProps) {
 
                     {selectedRate && !isBookingOpenToday ? (
                         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                            As reservas para este evento abrem em <strong>{selectedRate.booking_start}</strong>.
+                            As reservas para este evento estão fora da janela disponível ({selectedRate.booking_start ?? 'Data a definir'} até {selectedRate.booking_end ?? 'Data a definir'}).
                         </div>
                     ) : null}
 
@@ -444,7 +445,7 @@ export default function Checkout({ rates }: CheckoutProps) {
                                         <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-black">
                                             <img
                                                 src={selectedImage}
-                                                alt={selectedRate?.hotel_name ?? 'Selected hotel'}
+                                                alt={selectedRate?.hotel_name ?? 'Hotel selecionado'}
                                                 className="h-52 w-full object-cover"
                                             />
                                             <button
@@ -486,7 +487,7 @@ export default function Checkout({ rates }: CheckoutProps) {
                                     {selectedRate ? (
                                         <div className="mt-4 space-y-1.5 text-sm text-slate-700">
                                             <p><span className="font-semibold text-slate-900">Quarto / Regime:</span> {selectedRate.room_type} / {selectedRate.meal_plan}</p>
-                                            <p><span className="font-semibold text-slate-900">Janela de reserva:</span> {selectedRate.booking_start} até {selectedRate.booking_end}</p>
+                                            <p><span className="font-semibold text-slate-900">Janela de reserva:</span> {selectedRate.booking_start ?? 'Data a definir'} até {selectedRate.booking_end ?? 'Data a definir'}</p>
                                             <p><span className="font-semibold text-slate-900">Hóspedes máximos:</span> {selectedRate.max_guests}</p>
                                             <p><span className="font-semibold text-slate-900">Stock:</span> {selectedRate.stock}</p>
                                             {preparedReference ? (
@@ -546,7 +547,7 @@ export default function Checkout({ rates }: CheckoutProps) {
                         <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black">
                             <img
                                 src={selectedImage}
-                                alt={selectedRate?.hotel_name ?? 'Selected hotel'}
+                                alt={selectedRate?.hotel_name ?? 'Hotel selecionado'}
                                 className="mx-auto max-h-[78vh] w-auto transition-transform duration-200"
                                 style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
                             />

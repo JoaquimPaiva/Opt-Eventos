@@ -14,7 +14,7 @@ class BookingController extends Controller
     {
         $hotelId = $request->user()?->hotel_id;
         if ($hotelId === null) {
-            abort(403, 'Hotel account is not linked to a hotel.');
+            abort(403, 'A conta de hotel não está associada a nenhum hotel.');
         }
 
         $status = (string) $request->query('status', '');
@@ -22,7 +22,7 @@ class BookingController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         $bookingsQuery = Booking::query()
-            ->with(['user', 'event', 'hotel', 'rate.roomType', 'rate.mealPlan', 'payment'])
+            ->with(['user', 'event', 'hotel', 'rate.roomType', 'rate.mealPlan', 'payment', 'supplierPayment'])
             ->where('hotel_id', $hotelId)
             ->latest();
 
@@ -58,8 +58,8 @@ class BookingController extends Controller
                 'check_out' => $booking->check_out->toDateString(),
                 'room_type' => $booking->rate->roomType->name,
                 'meal_plan' => $booking->rate->mealPlan->name,
-                'total_price' => (float) $booking->total_price,
-                'currency' => $booking->payment?->currency ?? 'EUR',
+                'supplier_amount' => (float) ($booking->supplierPayment?->amount ?? 0),
+                'currency' => $booking->supplierPayment?->currency ?? 'EUR',
                 'booking_status' => $booking->status,
                 'payment_status' => $booking->payment?->status,
             ])

@@ -29,13 +29,13 @@ class CreateBookingAction
 
             if (! $rate->is_active || ! $event->is_active) {
                 throw ValidationException::withMessages([
-                    'rate_id' => 'Selected rate is not available.',
+                    'rate_id' => 'A tarifa selecionada já não está disponível para reserva.',
                 ]);
             }
 
             if ($rate->stock <= 0) {
                 throw ValidationException::withMessages([
-                    'rate_id' => 'Selected rate is sold out.',
+                    'rate_id' => 'A tarifa selecionada está esgotada.',
                 ]);
             }
 
@@ -45,21 +45,25 @@ class CreateBookingAction
 
             if ($nights <= 0) {
                 throw ValidationException::withMessages([
-                    'check_out' => 'Check-out must be after check-in.',
+                    'check_out' => 'A data de check-out tem de ser posterior à data de check-in.',
                 ]);
             }
 
             $today = CarbonImmutable::now()->startOfDay();
-            if ($today->lt($event->booking_start->startOfDay()) || $today->gt($event->booking_end->startOfDay())) {
+            $bookingStart = $event->booking_start?->startOfDay();
+            $bookingEnd = $event->booking_end?->startOfDay();
+            if (($bookingStart && $today->lt($bookingStart))
+                || ($bookingEnd && $today->gt($bookingEnd))
+            ) {
                 throw ValidationException::withMessages([
-                    'rate_id' => 'This event is not open for bookings on the current date.',
+                    'rate_id' => 'Este evento não está com reservas abertas na data atual.',
                 ]);
             }
 
             $guests = (int) $payload['guests'];
             if ($guests > $rate->roomType->max_guests) {
                 throw ValidationException::withMessages([
-                    'guests' => 'Guest count exceeds room capacity.',
+                    'guests' => 'O número de hóspedes excede a capacidade máxima deste quarto.',
                 ]);
             }
 
@@ -86,16 +90,56 @@ class CreateBookingAction
 
             $rate->decrement('stock');
 
-            Payment::query()->create([
-                'booking_id' => $booking->id,
-                'provider' => (string) config('payment.provider', 'STRIPE_MOCK'),
-                'amount' => $totalPrice,
-                'currency' => $rate->currency,
-                'status' => 'PENDING',
-                'due_date' => now()->addDays(3)->toDateString(),
-                'paid_at' => null,
-                'provider_reference' => (string) ($payload['payment_reference'] ?? sprintf('pm_%s', $booking->id)),
-            ]);
+            $isDepositFlow = (string) $rate->cancellation_policy === Rate::CANCELLATION_POLICY_DEPOSIT_NON_REFUNDABLE
+                && $rate->deposit_amount !== null
+                && $rate->balance_due_days_before_checkin !== null;
+
+            if ($isDepositFlow) {
+                $depositAmount = min((float) $rate->deposit_amount, $totalPrice);
+                $balanceAmount = max(0, $totalPrice - $depositAmount);
+                $depositDueDate = now()->toDateString();
+                $balanceDueDate = $checkIn->subDays((int) $rate->balance_due_days_before_checkin)->toDateString();
+
+                Payment::query()->create([
+                    'booking_id' => $booking->id,
+                    'provider' => (string) config('payment.provider', 'STRIPE_MOCK'),
+                    'amount' => $depositAmount,
+                    'currency' => $rate->currency,
+                    'status' => 'PENDING',
+                    'installment_type' => Payment::INSTALLMENT_DEPOSIT,
+                    'due_date' => $depositDueDate,
+                    'deposit_amount' => $depositAmount,
+                    'balance_amount' => $balanceAmount,
+                    'deposit_due_date' => $depositDueDate,
+                    'balance_due_date' => $balanceDueDate,
+                    'deposit_paid_at' => null,
+                    'balance_paid_at' => null,
+                    'paid_at' => null,
+                    'provider_reference' => null,
+                    'deposit_provider_reference' => null,
+                    'balance_provider_reference' => null,
+                ]);
+            } else {
+                Payment::query()->create([
+                    'booking_id' => $booking->id,
+                    'provider' => (string) config('payment.provider', 'STRIPE_MOCK'),
+                    'amount' => $totalPrice,
+                    'currency' => $rate->currency,
+                    'status' => 'PENDING',
+                    'installment_type' => Payment::INSTALLMENT_FULL,
+                    'due_date' => now()->addDays(3)->toDateString(),
+                    'deposit_amount' => null,
+                    'balance_amount' => null,
+                    'deposit_due_date' => null,
+                    'balance_due_date' => null,
+                    'deposit_paid_at' => null,
+                    'balance_paid_at' => null,
+                    'paid_at' => null,
+                    'provider_reference' => (string) ($payload['payment_reference'] ?? sprintf('pm_%s', $booking->id)),
+                    'deposit_provider_reference' => null,
+                    'balance_provider_reference' => null,
+                ]);
+            }
 
             SupplierPayment::query()->create([
                 'booking_id' => $booking->id,

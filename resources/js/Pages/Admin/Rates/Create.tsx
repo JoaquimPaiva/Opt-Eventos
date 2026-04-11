@@ -34,6 +34,9 @@ export default function RateCreate({ hotels, room_types, meal_plans }: RateCreat
         sale_price: '',
         currency: 'EUR',
         stock: '0',
+        cancellation_policy: 'FREE_CANCELLATION',
+        deposit_amount: '',
+        balance_due_days_before_checkin: '',
         cancellation_deadline: '',
         is_active: true,
     });
