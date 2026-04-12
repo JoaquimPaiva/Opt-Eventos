@@ -1,9 +1,12 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
+import CookieConsentBanner from "@/Components/CookieConsentBanner";
 import Dropdown from "@/Components/Dropdown";
 import ErrorToasts from "@/Components/ErrorToasts";
+import Footer from "@/Components/Footer";
 import NavLink from "@/Components/NavLink";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink";
 import { assetUrl } from "@/lib/assetUrl";
+import { canUseCookieCategory } from "@/lib/cookieConsent";
 import { PageProps } from "@/types";
 import axios from "axios";
 import { Link, usePage } from "@inertiajs/react";
@@ -66,7 +69,11 @@ export default function Authenticated({
     const hasAnyNotifications =
         notifications.unread_items.length > 0 ||
         notifications.read_items.length > 0;
-    const canUseBrowserPush = user.role === "ADMIN" || user.role === "HOTEL";
+    const [allowPersonalizationCookies, setAllowPersonalizationCookies] =
+        useState<boolean>(canUseCookieCategory("personalization"));
+    const canUseBrowserPush =
+        (user.role === "ADMIN" || user.role === "HOTEL") &&
+        allowPersonalizationCookies;
     const webPushConfig = pageProps.web_push ?? {
         enabled: false,
         public_key: null,
@@ -89,6 +96,24 @@ export default function Authenticated({
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+
+    useEffect(() => {
+        const syncConsent = () => {
+            setAllowPersonalizationCookies(
+                canUseCookieCategory("personalization"),
+            );
+        };
+
+        window.addEventListener("app:cookie-consent-updated", syncConsent);
+        syncConsent();
+
+        return () => {
+            window.removeEventListener(
+                "app:cookie-consent-updated",
+                syncConsent,
+            );
+        };
+    }, []);
 
     useEffect(() => {
         if (!canUseBrowserPush || typeof window === "undefined") {
@@ -265,6 +290,7 @@ export default function Authenticated({
     return (
         <div className="min-h-screen bg-gray-100">
             <ErrorToasts />
+            <CookieConsentBanner />
             <nav className="border-b border-gray-100 bg-white">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
@@ -280,7 +306,7 @@ export default function Authenticated({
                                 </Link>
                             </div>
 
-                            <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            <div className="hidden space-x-8 md:-my-px md:ms-10 md:flex">
                                 {user.role !== "HOTEL" ? (
                                     <>
                                         <NavLink
@@ -306,6 +332,16 @@ export default function Authenticated({
                                             )}
                                         >
                                             Minhas Reservas
+                                        </NavLink>
+                                        <NavLink
+                                            href={route(
+                                                "dashboard.billing.index",
+                                            )}
+                                            active={route().current(
+                                                "dashboard.billing.*",
+                                            )}
+                                        >
+                                            Faturas
                                         </NavLink>
                                     </>
                                 ) : (
@@ -347,7 +383,7 @@ export default function Authenticated({
                             </div>
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                        <div className="hidden md:ms-6 md:flex md:items-center">
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
@@ -584,7 +620,7 @@ export default function Authenticated({
                             </div>
                         </div>
 
-                        <div className="-me-2 flex items-center sm:hidden">
+                        <div className="-me-2 flex items-center md:hidden">
                             <button
                                 onClick={() =>
                                     setShowingNavigationDropdown(
@@ -594,32 +630,41 @@ export default function Authenticated({
                                 className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
                             >
                                 <svg
-                                    className="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
+                                    width="1em"
+                                    height="1em"
+                                    xmlns="http://www.w3.org/2000/svg"
                                     viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    className="size-6"
                                 >
+                                    {/* Hamburger */}
                                     <path
-                                        className={
-                                            !showingNavigationDropdown
-                                                ? "inline-flex"
-                                                : "hidden"
-                                        }
+                                        fill="none"
+                                        stroke="#000000"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        className={
+                                        strokeWidth="1.5"
+                                        d="M4 9h16M4 15h10"
+                                        className={`transition-all duration-300 ease-in-out origin-center ${
                                             showingNavigationDropdown
-                                                ? "inline-flex"
-                                                : "hidden"
-                                        }
+                                                ? "opacity-0 scale-75 rotate-90"
+                                                : "opacity-100 scale-100 rotate-0"
+                                        }`}
+                                    />
+
+                                    {/* Line (close state) */}
+                                    <path
+                                        fill="none"
+                                        stroke="#000000"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
+                                        strokeWidth="1.5"
+                                        d="M20 12H4"
+                                        className={`transition-all duration-300 ease-in-out origin-center ${
+                                            showingNavigationDropdown
+                                                ? "opacity-100 scale-100 rotate-0"
+                                                : "opacity-0 scale-75 -rotate-90"
+                                        }`}
                                     />
                                 </svg>
                             </button>
@@ -630,7 +675,7 @@ export default function Authenticated({
                 <div
                     className={
                         (showingNavigationDropdown ? "block" : "hidden") +
-                        " sm:hidden"
+                        " md:hidden"
                     }
                 >
                     <div className="space-y-1 pb-3 pt-2">
@@ -655,6 +700,14 @@ export default function Authenticated({
                                     )}
                                 >
                                     Minhas Reservas
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink
+                                    href={route("dashboard.billing.index")}
+                                    active={route().current(
+                                        "dashboard.billing.*",
+                                    )}
+                                >
+                                    Faturas
                                 </ResponsiveNavLink>
                             </>
                         ) : (
@@ -876,6 +929,7 @@ export default function Authenticated({
             )}
 
             <main>{children}</main>
+            <Footer />
         </div>
     );
 }

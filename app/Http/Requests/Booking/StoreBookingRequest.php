@@ -22,6 +22,8 @@ class StoreBookingRequest extends FormRequest
             'check_out' => ['required', 'date', 'after:check_in'],
             'guests' => ['required', 'integer', 'min:1', 'max:10'],
             'payment_reference' => ['nullable', 'string', 'max:255'],
+            'accept_terms' => ['accepted'],
+            'accept_privacy' => ['accepted'],
         ];
     }
 }

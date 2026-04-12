@@ -105,7 +105,7 @@ export default function HotelUsersIndex({ users }: HotelUsersProps) {
                             </div>
                         ) : null}
 
-                        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                        <div className="mt-4 -mx-4 overflow-x-auto rounded-lg border border-slate-200 sm:mx-0">
                             <table className="w-full min-w-[860px] divide-y divide-slate-200 text-sm">
                                 <thead className="bg-slate-50">
                                     <tr>
@@ -163,7 +163,7 @@ export default function HotelUsersIndex({ users }: HotelUsersProps) {
                                             <td className="px-4 py-3 text-slate-600">{user.created_at ?? '-'}</td>
                                             <td className="px-4 py-3 text-right">
                                                 {editingUserId === user.id ? (
-                                                    <div className="inline-flex items-center gap-2">
+                                                    <div className="inline-flex flex-wrap items-center gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => submitEdit(user.id)}
@@ -181,7 +181,7 @@ export default function HotelUsersIndex({ users }: HotelUsersProps) {
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    <div className="inline-flex items-center gap-2">
+                                                    <div className="inline-flex flex-wrap items-center gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => startEdit(user)}

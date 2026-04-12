@@ -56,7 +56,7 @@ export default function SupplierPaymentsIndex({ supplier_payments, filters }: Su
 
             <div className="py-10">
                 <div className="mx-auto max-w-7xl space-y-4 px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-end justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <p className="text-sm text-gray-600">Acompanha valores a fornecedores e estado de liquidação.</p>
 
                     <Link
@@ -103,7 +103,7 @@ export default function SupplierPaymentsIndex({ supplier_payments, filters }: Su
                         </form>
                     </div>
 
-                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                    <div className="-mx-4 overflow-x-auto rounded-lg bg-white shadow-sm sm:mx-0">
                         <table className="w-full min-w-[980px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>

@@ -25,6 +25,8 @@ class RegistrationTest extends TestCase
             'nif' => '123456789',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'accept_terms' => true,
+            'accept_privacy' => true,
         ]);
 
         $this->assertAuthenticated();

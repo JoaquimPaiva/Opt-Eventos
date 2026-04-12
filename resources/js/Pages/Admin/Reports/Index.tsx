@@ -68,7 +68,7 @@ export default function ReportsIndex({ filters, metrics, top_events, daily_trend
 
             <div className="py-10">
                 <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-end justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                             <p className="text-sm text-gray-600">Acompanha valores a fornecedores e estado de liquidação.</p>
                             <Link
                                 href={route("admin.dashboard")}

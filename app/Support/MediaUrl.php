@@ -25,7 +25,7 @@ final class MediaUrl
             return null;
         }
 
-        return self::withBasePath('/storage/'.$normalized);
+        return self::withBasePath('/media/'.$normalized);
     }
 
     private static function withBasePath(string $path): string

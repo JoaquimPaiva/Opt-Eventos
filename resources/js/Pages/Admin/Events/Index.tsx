@@ -31,11 +31,11 @@ export default function EventsIndex({ events }: EventsIndexProps) {
 
             <div className="py-10">
                 <div className="mx-auto max-w-7xl space-y-4 px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-end justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <p className="text-sm text-gray-600">Gere o catálogo de eventos e as janelas de reserva.</p>
                         </div>
-                        <div className="inline-flex items-center gap-2">
+                        <div className="inline-flex flex-wrap items-center gap-2">
                             <Link
                         href={route("admin.dashboard")}
                         className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
@@ -57,7 +57,7 @@ export default function EventsIndex({ events }: EventsIndexProps) {
                         </div>
                     ) : null}
 
-                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                    <div className="-mx-4 overflow-x-auto rounded-lg bg-white shadow-sm sm:mx-0">
                         <table className="w-full min-w-[900px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -108,7 +108,7 @@ export default function EventsIndex({ events }: EventsIndexProps) {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <div className="inline-flex items-center gap-2">
+                                            <div className="inline-flex flex-wrap items-center gap-2">
                                                 <button
                                                     type="button"
                                                     className={`rounded-md px-3 py-1.5 text-xs font-semibold ${

@@ -32,6 +32,8 @@ class Booking extends Model
         'status',
         'cancellation_reason',
         'cancelled_at',
+        'terms_accepted_at',
+        'privacy_accepted_at',
     ];
 
     protected function casts(): array
@@ -43,6 +45,8 @@ class Booking extends Model
             'fees_total' => 'decimal:2',
             'total_price' => 'decimal:2',
             'cancelled_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
+            'privacy_accepted_at' => 'datetime',
         ];
     }
 

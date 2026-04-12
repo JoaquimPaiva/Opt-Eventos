@@ -57,6 +57,8 @@ class CreateBookingTest extends TestCase
                 'check_out' => '2026-07-13',
                 'guests' => 2,
                 'payment_reference' => 'pi_test_checkout_123',
+                'accept_terms' => true,
+                'accept_privacy' => true,
             ]);
 
         $booking = Booking::query()->firstOrFail();
@@ -107,6 +109,8 @@ class CreateBookingTest extends TestCase
                 'check_out' => '2026-07-22',
                 'guests' => 2,
                 'payment_reference' => 'pi_test_checkout_hotel_123',
+                'accept_terms' => true,
+                'accept_privacy' => true,
             ])
             ->assertRedirect();
 
@@ -146,6 +150,8 @@ class CreateBookingTest extends TestCase
                 'check_in' => '2026-07-10',
                 'check_out' => '2026-07-12',
                 'guests' => 1,
+                'accept_terms' => true,
+                'accept_privacy' => true,
             ])
             ->assertRedirect(route('checkout'))
             ->assertSessionHasErrors('rate_id');
@@ -324,6 +330,8 @@ class CreateBookingTest extends TestCase
                 'check_out' => '2026-07-12',
                 'guests' => 2,
                 'payment_reference' => 'pi_test_checkout_null_window_123',
+                'accept_terms' => true,
+                'accept_privacy' => true,
             ])
             ->assertRedirect();
 

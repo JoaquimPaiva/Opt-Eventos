@@ -59,12 +59,16 @@ class BookingController extends Controller
                 return [
                     'id' => $firstRate->hotel->event->id,
                     'name' => $firstRate->hotel->event->name,
+                    'location' => $firstRate->hotel->event->location,
+                    'start_date' => $firstRate->hotel->event->start_date?->toDateString(),
+                    'end_date' => $firstRate->hotel->event->end_date?->toDateString(),
                     'booking_start' => $firstRate->hotel->event->booking_start?->toDateString(),
                     'booking_end' => $firstRate->hotel->event->booking_end?->toDateString(),
                     'hotels_available' => $group->pluck('hotel_id')->unique()->count(),
                     'offers_available' => $group->count(),
                     'from_price' => (float) $group->min('sale_price'),
                     'currency' => (string) $firstRate->currency,
+                    'policies' => $group->pluck('cancellation_policy')->unique()->values()->all(),
                     'image' => $image,
                 ];
             })
@@ -129,6 +133,7 @@ class BookingController extends Controller
                     'description' => $firstRate->hotel->description,
                     'image' => $images->first(),
                     'available_rates' => $group->count(),
+                    'policies' => $group->pluck('cancellation_policy')->unique()->values()->all(),
                     'from_price' => (float) $group->min('sale_price'),
                     'currency' => (string) $firstRate->currency,
                 ];
@@ -140,6 +145,9 @@ class BookingController extends Controller
             'event' => [
                 'id' => $firstEventRate->hotel->event->id,
                 'name' => $firstEventRate->hotel->event->name,
+                'location' => $firstEventRate->hotel->event->location,
+                'start_date' => $firstEventRate->hotel->event->start_date?->toDateString(),
+                'end_date' => $firstEventRate->hotel->event->end_date?->toDateString(),
                 'booking_start' => $firstEventRate->hotel->event->booking_start?->toDateString(),
                 'booking_end' => $firstEventRate->hotel->event->booking_end?->toDateString(),
             ],
@@ -189,6 +197,9 @@ class BookingController extends Controller
             'event' => [
                 'id' => $firstRate->hotel->event->id,
                 'name' => $firstRate->hotel->event->name,
+                'location' => $firstRate->hotel->event->location,
+                'start_date' => $firstRate->hotel->event->start_date?->toDateString(),
+                'end_date' => $firstRate->hotel->event->end_date?->toDateString(),
                 'booking_start' => $firstRate->hotel->event->booking_start?->toDateString(),
                 'booking_end' => $firstRate->hotel->event->booking_end?->toDateString(),
             ],
@@ -216,6 +227,7 @@ class BookingController extends Controller
                 'cancellation_policy' => $rate->cancellation_policy,
                 'deposit_amount' => $rate->deposit_amount !== null ? (float) $rate->deposit_amount : null,
                 'balance_due_days_before_checkin' => $rate->balance_due_days_before_checkin,
+                'cancellation_deadline' => $rate->cancellation_deadline?->toDateString(),
             ])->values(),
         ]);
     }
@@ -255,7 +267,13 @@ class BookingController extends Controller
                 'event_id' => $rate->hotel->event->id,
                 'hotel_id' => $rate->hotel->id,
                 'event_name' => $rate->hotel->event->name,
+                'event_location' => $rate->hotel->event->location,
+                'event_start_date' => $rate->hotel->event->start_date?->toDateString(),
+                'event_end_date' => $rate->hotel->event->end_date?->toDateString(),
                 'hotel_name' => $rate->hotel->name,
+                'hotel_address' => $rate->hotel->address,
+                'hotel_description' => $rate->hotel->description,
+                'hotel_website_url' => $rate->hotel->website_url,
                 'hotel_images' => $images,
                 'room_type' => $rate->roomType->name,
                 'meal_plan' => $rate->mealPlan->name,
@@ -268,6 +286,7 @@ class BookingController extends Controller
                 'cancellation_policy' => $rate->cancellation_policy,
                 'deposit_amount' => $rate->deposit_amount !== null ? (float) $rate->deposit_amount : null,
                 'balance_due_days_before_checkin' => $rate->balance_due_days_before_checkin,
+                'cancellation_deadline' => $rate->cancellation_deadline?->toDateString(),
             ],
             'prefill' => [
                 'check_in' => (string) $validated['check_in'],

@@ -1,3 +1,4 @@
+import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -51,6 +52,8 @@ export default function Register() {
         nif: '',
         password: '',
         password_confirmation: '',
+        accept_terms: false,
+        accept_privacy: false,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -183,6 +186,48 @@ export default function Register() {
                         message={errors.password_confirmation}
                         className="mt-2"
                     />
+                </div>
+
+                <div className="mt-5 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <label className="flex items-start gap-3 text-sm text-slate-700">
+                        <Checkbox
+                            id="accept_terms"
+                            name="accept_terms"
+                            checked={data.accept_terms}
+                            onChange={(event) =>
+                                setData('accept_terms', event.target.checked)
+                            }
+                            className="mt-0.5"
+                        />
+                        <span>
+                            Li e aceito os{' '}
+                            <Link href={route('legal.terms')} className="font-semibold underline">
+                                Termos e Condições
+                            </Link>
+                            .
+                        </span>
+                    </label>
+                    <InputError message={errors.accept_terms} />
+
+                    <label className="flex items-start gap-3 text-sm text-slate-700">
+                        <Checkbox
+                            id="accept_privacy"
+                            name="accept_privacy"
+                            checked={data.accept_privacy}
+                            onChange={(event) =>
+                                setData('accept_privacy', event.target.checked)
+                            }
+                            className="mt-0.5"
+                        />
+                        <span>
+                            Li e aceito a{' '}
+                            <Link href={route('legal.privacy')} className="font-semibold underline">
+                                Política de Privacidade
+                            </Link>
+                            .
+                        </span>
+                    </label>
+                    <InputError message={errors.accept_privacy} />
                 </div>
 
                 <div className="mt-4 flex items-center justify-end">

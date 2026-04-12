@@ -27,17 +27,39 @@ class PaymentIntentService
                 throw new RuntimeException('A configuração de pagamento online está incompleta. Contacta o suporte.');
             }
 
+            /** @var array<int, string> $configuredMethodTypes */
+            $configuredMethodTypes = collect((array) config('payment.stripe_payment_method_types', []))
+                ->map(fn ($type) => is_string($type) ? $this->normalizeStripePaymentMethodType($type) : '')
+                ->filter(fn (string $type) => $type !== '')
+                ->unique()
+                ->values()
+                ->all();
+
+            $payload = [
+                'amount' => (int) round($amount * 100),
+                'currency' => strtolower($currency),
+                'metadata[payment_reference]' => sprintf('pmref_%s', Str::uuid()->toString()),
+            ];
+
+            if (count($configuredMethodTypes) > 0) {
+                foreach ($configuredMethodTypes as $index => $methodType) {
+                    $payload[sprintf('payment_method_types[%d]', $index)] = $methodType;
+                }
+            } else {
+                $payload['automatic_payment_methods[enabled]'] = 'true';
+            }
+
             $response = Http::asForm()
                 ->withBasicAuth($secretKey, '')
                 ->timeout(15)
-                ->post('https://api.stripe.com/v1/payment_intents', [
-                    'amount' => (int) round($amount * 100),
-                    'currency' => strtolower($currency),
-                    'automatic_payment_methods[enabled]' => 'true',
-                    'metadata[payment_reference]' => sprintf('pmref_%s', Str::uuid()->toString()),
-                ]);
+                ->post('https://api.stripe.com/v1/payment_intents', $payload);
 
             if ($response->failed()) {
+                $providerMessage = (string) ($response->json('error.message') ?? '');
+                if ($providerMessage !== '') {
+                    throw new RuntimeException(sprintf('Stripe: %s', $providerMessage));
+                }
+
                 throw new RuntimeException('Não foi possível iniciar o pagamento online. Tenta novamente dentro de momentos.');
             }
 
@@ -70,5 +92,16 @@ class PaymentIntentService
     private function isStripeBackedProvider(string $provider): bool
     {
         return in_array($provider, ['STRIPE', 'PAYPAL', 'REVOLUT'], true);
+    }
+
+    private function normalizeStripePaymentMethodType(string $methodType): string
+    {
+        $normalized = strtolower(trim($methodType));
+
+        return match ($normalized) {
+            'mbway' => 'mb_way',
+            'revolut' => 'revolut_pay',
+            default => $normalized,
+        };
     }
 }

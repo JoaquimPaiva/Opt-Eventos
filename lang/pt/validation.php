@@ -123,6 +123,8 @@ return [
         'check_out' => 'data de check-out',
         'guests' => 'número de hóspedes',
         'payment_reference' => 'referência de pagamento',
+        'accept_terms' => 'aceitação dos Termos e Condições',
+        'accept_privacy' => 'aceitação da Política de Privacidade',
         'status' => 'estado',
         'cancellation_reason' => 'motivo de cancelamento',
         'supplier_name' => 'nome do fornecedor',

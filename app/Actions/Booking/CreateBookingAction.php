@@ -86,6 +86,8 @@ class CreateBookingAction
                 'status' => 'CONFIRMED',
                 'cancellation_reason' => null,
                 'cancelled_at' => null,
+                'terms_accepted_at' => now(),
+                'privacy_accepted_at' => now(),
             ]);
 
             $rate->decrement('stock');

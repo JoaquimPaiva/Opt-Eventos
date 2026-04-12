@@ -38,6 +38,10 @@ O projeto segue arquitetura Laravel + Inertia + React, com foco em produtividade
 - Landing page com proposta de valor, conteúdo comercial e acesso rápido ao checkout.
 - Bloco de seleção de disponibilidade diretamente na página inicial.
 - Galeria de imagens de hotel com melhor experiência visual.
+- Header e footer públicos reutilizáveis.
+- Secções públicas extraídas para componentes em `resources/js/Components/Publico` para facilitar manutenção e estilização.
+- Páginas legais públicas: privacidade, cookies e termos.
+- Banner de cookies com gestão de consentimento.
 
 ### Checkout e reservas (cliente)
 
@@ -50,6 +54,13 @@ O projeto segue arquitetura Laravel + Inertia + React, com foco em produtividade
 - Criação de Payment Intent antes da confirmação da reserva.
 - Criação de booking e pagamento associado.
 - Página de pagamento da reserva com sincronização de estado.
+- Suporte a políticas de tarifa:
+  - cancelamento gratuito
+  - tarifa não reembolsável
+  - sinal não reembolsável
+- Suporte a pagamento por prestações:
+  - sinal com valor fixo
+  - restante liquidado antes do check-in (dias configuráveis).
 
 ### Área do cliente
 
@@ -57,6 +68,7 @@ O projeto segue arquitetura Laravel + Inertia + React, com foco em produtividade
 - Lista e detalhe de reservas.
 - Cancelamento de reservas (com regras de elegibilidade).
 - Eliminação de reservas canceladas ou expiradas (fluxo de limpeza de histórico).
+- Página dedicada de `Faturas` com downloads num único local.
 
 ### Área admin
 
@@ -82,6 +94,7 @@ O projeto segue arquitetura Laravel + Inertia + React, com foco em produtividade
   - Reserva criada
   - Pagamento confirmado
   - Reserva cancelada
+  - Emissão de documentos de faturação (fatura)
   - Alertas administrativos de reserva paga
 - Push web para perfis elegíveis (admin/hotel), com gestão de subscrições por browser.
 
@@ -95,6 +108,7 @@ O projeto segue arquitetura Laravel + Inertia + React, com foco em produtividade
    - `supplier_payments` (fornecedor/hotel)
 5. Notificações são emitidas para os atores relevantes.
 6. Webhook Stripe atualiza estado de pagamento (`PAID`, etc.).
+7. Em pagamentos confirmados, o sistema emite `INVOICE` e envia email ao cliente.
 
 ## Perfis e permissões
 
@@ -123,6 +137,8 @@ O projeto segue arquitetura Laravel + Inertia + React, com foco em produtividade
 - `GET /dashboard/bookings`
 - `GET /dashboard/bookings/{booking}`
 - `GET /dashboard/bookings/{booking}/payment`
+- `GET /dashboard/faturas-recibos`
+- `GET /dashboard/bookings/{booking}/billing/{invoice}`
 - `POST /dashboard/bookings/{booking}/payment/intent`
 - `POST /dashboard/bookings/{booking}/payment/sync-stripe`
 - `POST /dashboard/bookings/{booking}/payment/confirm`
@@ -215,6 +231,42 @@ Escutar webhooks localmente:
 ```bash
 stripe listen --forward-to http://127.0.0.1:8000/webhooks/stripe
 ```
+
+### Métodos de pagamento Stripe (opcional)
+
+Podes limitar os métodos apresentados no checkout:
+
+```env
+STRIPE_PAYMENT_METHOD_TYPES=card,multibanco,paypal,klarna,mbway,revolut_pay
+```
+
+Nota:
+
+- Usa apenas métodos suportados pela tua conta/país no Stripe.
+- Depois de alterar, executa `php artisan optimize:clear`.
+
+## Configuração de faturação (Portugal)
+
+Adicionar no `.env`:
+
+```env
+BILLING_SERIES_INVOICE=FS
+BILLING_SERIES_RECEIPT=RC
+BILLING_SERIES_VALIDATION_CODE_INVOICE=
+BILLING_SERIES_VALIDATION_CODE_RECEIPT=
+BILLING_DOCUMENT_PLACE=Lisboa
+BILLING_PAYMENT_TERMS=Pronto pagamento
+BILLING_VAT_RATE_PERCENT=6
+BILLING_VAT_EXEMPTION_REASON=
+BILLING_ATCUD=
+BILLING_DOCUMENT_NOTES=Documento emitido por via eletrónica
+```
+
+Notas importantes:
+
+- O sistema usa atualmente emissão de **fatura** (`INVOICE`) no fluxo principal.
+- Para ATCUD não pendente, tens de comunicar séries no Portal das Finanças e preencher os campos `BILLING_SERIES_VALIDATION_CODE_*`.
+- Se os códigos de validação estiverem vazios, o ATCUD aparece como `PENDENTE-xxxxxx`.
 
 ## Configuração de email (SMTP real)
 
@@ -334,6 +386,20 @@ php artisan optimize
 - Webhook Stripe apontado para domínio correto
 - HTTPS ativo (obrigatório para push real)
 
+## Estrutura frontend (resumo)
+
+- `resources/js/Pages`
+  - Páginas Inertia (públicas, cliente, admin, hotel, legal).
+- `resources/js/Components`
+  - Componentes globais e layout.
+- `resources/js/Components/Publico`
+  - Secções reutilizáveis das páginas públicas:
+    - `WelcomeSections.tsx`
+    - `EventosSections.tsx`
+    - `ContactosSections.tsx`
+
+Esta organização permite evoluir visual da área pública sem tocar na lógica principal de cada página.
+
 ## Segurança e boas práticas
 
 - Nunca versionar `.env` com segredos.
@@ -346,9 +412,17 @@ php artisan optimize
 
 ### Imagens de hotel não aparecem
 
-- Verificar `php artisan storage:link`
-- Confirmar ficheiros em `storage/app/public/hotels`
+- Confirmar ficheiros em `storage/app/public/hotels` e `storage/app/public/events`
+- Confirmar rota pública de media (`/media/{path}`) operacional
+- Se o ambiente depender de symlink, verificar `php artisan storage:link`
 - Limpar cache (`php artisan optimize:clear`)
+
+### Favicon não aparece no servidor
+
+- Confirmar ficheiro `public/favicon.ico` existente.
+- Confirmar `<link rel="icon"...>` no `resources/views/app.blade.php`.
+- Se a app correr em subpasta `/public`, validar URL final `https://dominio/public/favicon.ico`.
+- Limpar caches (`php artisan optimize:clear`) e forçar refresh do browser (`Ctrl+F5`).
 
 ### Página branca em túnel (ngrok/cloudflare)
 

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Webhooks;
 
-use App\Mail\InvoiceIssuedMail;
+use App\Mail\BillingDocumentsIssuedMail;
 use App\Models\Booking;
 use App\Models\Event;
 use App\Models\Hotel;
@@ -60,10 +60,11 @@ class PaymentWebhookTest extends TestCase
         $this->assertDatabaseHas('invoices', [
             'booking_id' => $payment->booking_id,
             'installment_type' => 'FULL',
+            'document_type' => 'INVOICE',
             'amount' => 300.00,
             'currency' => 'EUR',
         ]);
-        Mail::assertSent(InvoiceIssuedMail::class);
+        Mail::assertSent(BillingDocumentsIssuedMail::class);
     }
 
     public function test_invalid_signature_is_rejected(): void
@@ -153,10 +154,11 @@ class PaymentWebhookTest extends TestCase
         $this->assertDatabaseHas('invoices', [
             'booking_id' => $payment->booking_id,
             'installment_type' => 'FULL',
+            'document_type' => 'INVOICE',
             'amount' => 300.00,
             'currency' => 'EUR',
         ]);
-        Mail::assertSent(InvoiceIssuedMail::class);
+        Mail::assertSent(BillingDocumentsIssuedMail::class);
     }
 
     public function test_stripe_webhook_with_expired_timestamp_is_rejected(): void

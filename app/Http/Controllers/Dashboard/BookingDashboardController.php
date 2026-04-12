@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Booking\CancelBookingRequest;
 use App\Models\Booking;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Rate;
 use App\Models\User;
@@ -17,6 +18,7 @@ use App\Services\Payments\PaymentIntentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
@@ -187,7 +189,7 @@ class BookingDashboardController extends Controller
     {
         abort_unless($booking->user_id === $request->user()->id, 404);
 
-        $booking->load(['event', 'hotel', 'rate', 'payment']);
+        $booking->load(['event', 'hotel', 'rate', 'payment', 'invoices']);
         abort_if($booking->payment === null, 404);
 
         return Inertia::render('Dashboard/Bookings/Payment', [
@@ -218,8 +220,84 @@ class BookingDashboardController extends Controller
                     && $booking->status !== 'CANCELLED',
                 'can_prepare_online_payment' => $this->canAcceptPayment($booking->payment)
                     && $booking->status !== 'CANCELLED',
+                'billing_documents' => $booking->invoices
+                    ->where('document_type', Invoice::TYPE_INVOICE)
+                    ->sortByDesc('issued_at')
+                    ->map(fn (Invoice $invoice) => $this->mapBillingDocument($invoice, $booking))
+                    ->values()
+                    ->all(),
             ],
         ]);
+    }
+
+    public function billingDocuments(Request $request): Response
+    {
+        $documents = Invoice::query()
+            ->with(['booking.event:id,name', 'booking.hotel:id,name', 'booking.payment:id,booking_id,status'])
+            ->where('document_type', Invoice::TYPE_INVOICE)
+            ->whereHas('booking', fn ($query) => $query->where('user_id', $request->user()->id))
+            ->orderByDesc('issued_at')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (Invoice $invoice) {
+                $booking = $invoice->booking;
+
+                if ($booking === null) {
+                    return null;
+                }
+
+                return [
+                    ...$this->mapBillingDocument($invoice, $booking),
+                    'event_name' => (string) $booking->event?->name,
+                    'hotel_name' => (string) $booking->hotel?->name,
+                    'booking_status' => (string) $booking->status,
+                    'payment_status' => $this->displayPaymentStatus($booking->payment),
+                    'booking_url' => route('dashboard.bookings.show', $booking->id),
+                    'payment_url' => route('dashboard.bookings.payment', $booking->id),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        return Inertia::render('Dashboard/Billing/Index', [
+            'documents' => $documents,
+        ]);
+    }
+
+    public function downloadBillingDocument(
+        Request $request,
+        Booking $booking,
+        Invoice $invoice,
+        InvoiceService $invoiceService
+    )
+    {
+        abort_unless($booking->user_id === $request->user()->id, 404);
+        abort_unless((string) $invoice->booking_id === (string) $booking->id, 404);
+
+        if (app()->environment('local') || $request->boolean('refresh')) {
+            $invoiceService->regenerateDocumentFile($invoice);
+            $invoice->refresh();
+        }
+
+        if (! filled($invoice->file_path) || ! Storage::disk('local')->exists((string) $invoice->file_path)) {
+            throw ValidationException::withMessages([
+                'invoice' => 'Documento indisponível para download.',
+            ]);
+        }
+
+        // Evita erro 500 no header Content-Disposition quando o número da fatura
+        // contém "/" ou "\" (ex.: "FT A/12").
+        $safeInvoiceNumber = preg_replace('/[\\\\\/]+/', '-', (string) $invoice->invoice_number);
+        $safeInvoiceNumber = trim((string) $safeInvoiceNumber);
+        if ($safeInvoiceNumber === '') {
+            $safeInvoiceNumber = sprintf('fatura-%s', (string) $invoice->id);
+        }
+
+        return Storage::disk('local')->download(
+            (string) $invoice->file_path,
+            sprintf('%s.html', $safeInvoiceNumber),
+        );
     }
 
     public function paymentIntent(
@@ -474,6 +552,24 @@ class BookingDashboardController extends Controller
     private function canAcceptPayment(Payment $payment): bool
     {
         return in_array((string) $payment->status, ['PENDING', 'FAILED'], true);
+    }
+
+    private function mapBillingDocument(Invoice $invoice, Booking $booking): array
+    {
+        return [
+            'id' => $invoice->id,
+            'booking_id' => (string) $booking->id,
+            'document_type' => (string) $invoice->document_type,
+            'number' => (string) $invoice->invoice_number,
+            'installment_type' => (string) $invoice->installment_type,
+            'amount' => (float) $invoice->amount,
+            'currency' => (string) $invoice->currency,
+            'issued_at' => $invoice->issued_at?->toDateTimeString(),
+            'download_url' => route('dashboard.bookings.billing.download', [
+                'booking' => $booking->id,
+                'invoice' => $invoice->id,
+            ]),
+        ];
     }
 
     private function isStripeBackedProvider(): bool

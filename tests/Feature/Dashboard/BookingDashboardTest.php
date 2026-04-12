@@ -2,10 +2,11 @@
 
 namespace Tests\Feature\Dashboard;
 
-use App\Mail\InvoiceIssuedMail;
+use App\Mail\BillingDocumentsIssuedMail;
 use App\Models\Booking;
 use App\Models\Event;
 use App\Models\Hotel;
+use App\Models\Invoice;
 use App\Models\MealPlan;
 use App\Models\Payment;
 use App\Models\Rate;
@@ -79,6 +80,49 @@ class BookingDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('dashboard.bookings.payment', $otherBooking))
             ->assertNotFound();
+    }
+
+    public function test_user_only_sees_own_documents_in_billing_documents_area(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $ownBooking = $this->createBookingFor($user);
+        $otherBooking = $this->createBookingFor($otherUser);
+
+        Invoice::query()->create([
+            'booking_id' => $ownBooking->id,
+            'payment_id' => $ownBooking->payment->id,
+            'document_type' => 'INVOICE',
+            'installment_type' => 'FULL',
+            'invoice_number' => 'FT-TST-0001',
+            'amount' => 300,
+            'currency' => 'EUR',
+            'file_path' => 'invoices/test/ft-tst-0001.html',
+            'issued_at' => now(),
+        ]);
+
+        Invoice::query()->create([
+            'booking_id' => $otherBooking->id,
+            'payment_id' => $otherBooking->payment->id,
+            'document_type' => 'INVOICE',
+            'installment_type' => 'FULL',
+            'invoice_number' => 'FT-TST-0002',
+            'amount' => 300,
+            'currency' => 'EUR',
+            'file_path' => 'invoices/test/ft-tst-0002.html',
+            'issued_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard.billing.index'));
+
+        $response->assertOk();
+        $response->assertInertia(
+            fn ($page) => $page
+                ->component('Dashboard/Billing/Index')
+                ->has('documents', 1)
+                ->where('documents.0.booking_id', $ownBooking->id)
+                ->where('documents.0.number', 'FT-TST-0001')
+        );
     }
 
     public function test_user_can_cancel_booking_before_deadline(): void
@@ -238,11 +282,12 @@ class BookingDashboardTest extends TestCase
         $this->assertDatabaseHas('invoices', [
             'booking_id' => $booking->id,
             'installment_type' => 'FULL',
+            'document_type' => 'INVOICE',
             'currency' => 'EUR',
             'amount' => 300.00,
         ]);
 
-        Mail::assertSent(InvoiceIssuedMail::class);
+        Mail::assertSent(BillingDocumentsIssuedMail::class);
     }
 
     public function test_user_can_prepare_payment_intent_from_payment_area_when_provider_is_stripe(): void
@@ -358,11 +403,12 @@ class BookingDashboardTest extends TestCase
         $this->assertDatabaseHas('invoices', [
             'booking_id' => $booking->id,
             'installment_type' => 'FULL',
+            'document_type' => 'INVOICE',
             'currency' => 'EUR',
             'amount' => 300.00,
         ]);
 
-        Mail::assertSent(InvoiceIssuedMail::class);
+        Mail::assertSent(BillingDocumentsIssuedMail::class);
     }
 
     public function test_user_cannot_sync_stripe_payment_from_other_user_booking(): void

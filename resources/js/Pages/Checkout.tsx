@@ -466,7 +466,7 @@ export default function Checkout({ rates }: CheckoutProps) {
                                     )}
 
                                     {selectedImages.length > 1 ? (
-                                        <div className="mt-3 grid grid-cols-5 gap-2">
+                                        <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
                                             {selectedImages.map((image, index) => (
                                                 <button
                                                     key={`${image}-${index}`}
@@ -478,7 +478,7 @@ export default function Checkout({ rates }: CheckoutProps) {
                                                             : 'border-slate-200'
                                                     }`}
                                                 >
-                                                    <img src={image} alt={`Hotel ${index + 1}`} className="h-12 w-full object-cover" />
+                                                    <img src={image} alt={`Hotel ${index + 1}`} className="h-10 w-full object-cover sm:h-12" />
                                                 </button>
                                             ))}
                                         </div>
@@ -561,7 +561,7 @@ export default function Checkout({ rates }: CheckoutProps) {
                                         setActiveImageIndex((previous) => (previous - 1 + selectedImages.length) % selectedImages.length);
                                         setZoomLevel(1);
                                     }}
-                                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/85 px-3 py-2 text-sm font-bold text-slate-900"
+                                    className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-white/85 px-2 py-1.5 text-sm font-bold text-slate-900 sm:left-2 sm:px-3 sm:py-2"
                                 >
                                     ‹
                                 </button>
@@ -571,7 +571,7 @@ export default function Checkout({ rates }: CheckoutProps) {
                                         setActiveImageIndex((previous) => (previous + 1) % selectedImages.length);
                                         setZoomLevel(1);
                                     }}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/85 px-3 py-2 text-sm font-bold text-slate-900"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-white/85 px-2 py-1.5 text-sm font-bold text-slate-900 sm:right-2 sm:px-3 sm:py-2"
                                 >
                                     ›
                                 </button>

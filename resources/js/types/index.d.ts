@@ -37,4 +37,31 @@ export type PageProps<
         enabled: boolean;
         public_key?: string | null;
     };
+    legal?: {
+        version?: string;
+        operator?: {
+            brand_name?: string;
+            legal_name?: string;
+            nif?: string;
+            address?: string;
+            email?: string;
+            phone?: string;
+            commercial_registry?: string;
+            share_capital?: string;
+        };
+        privacy?: {
+            contact_email?: string;
+            retention?: Record<string, string>;
+            processors?: string[];
+            international_transfers?: string;
+        };
+        ral?: {
+            entity_name?: string;
+            website?: string;
+            email?: string;
+            phone?: string;
+        };
+        complaints_book_url?: string;
+        odr_discontinued_on?: string;
+    };
 };

@@ -32,11 +32,11 @@ export default function HotelsIndex({ hotels }: HotelsIndexProps) {
 
             <div className="py-10">
                 <div className="mx-auto max-w-7xl space-y-4 px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-end justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <p className="text-sm text-gray-600">
                             Gere hotéis e ligação a fornecedores por evento.
                         </p>
-                        <div className="inline-flex items-center gap-2">
+                        <div className="inline-flex flex-wrap items-center gap-2">
                             <Link
                                 href={route("admin.dashboard")}
                                 className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
@@ -58,7 +58,7 @@ export default function HotelsIndex({ hotels }: HotelsIndexProps) {
                         </div>
                     ) : null}
 
-                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                    <div className="-mx-4 overflow-x-auto rounded-lg bg-white shadow-sm sm:mx-0">
                         <table className="w-full min-w-[1040px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -134,7 +134,7 @@ export default function HotelsIndex({ hotels }: HotelsIndexProps) {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <div className="inline-flex items-center gap-2">
+                                            <div className="inline-flex flex-wrap items-center gap-2">
                                                 <Link
                                                     href={route(
                                                         "admin.hotels.edit",

@@ -115,7 +115,7 @@ export default function ErrorToasts() {
     }
 
     return (
-        <div className="pointer-events-none fixed right-20 top-20 z-[120] flex w-[min(92vw,420px)] flex-col gap-2">
+        <div className="pointer-events-none fixed right-2 top-2 z-[120] flex w-[min(94vw,420px)] flex-col gap-2 sm:right-5 sm:top-5">
             {toasts.map((toast) => (
                 <div
                     key={toast.id}

@@ -14,11 +14,14 @@ use App\Http\Controllers\Dashboard\BookingDashboardController;
 use App\Http\Controllers\Hotel\BookingController as HotelBookingController;
 use App\Http\Controllers\Hotel\DashboardController as HotelDashboardController;
 use App\Http\Controllers\Hotel\UserController as HotelUserController;
+use App\Http\Controllers\Legal\CookieConsentController;
+use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Webhooks\PaymentWebhookController;
 use App\Models\Event;
+use App\Models\Hotel;
 use App\Models\Rate;
 use App\Support\MediaUrl;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -26,6 +29,26 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+Route::get('/media/{path}', [MediaController::class, 'show'])
+    ->where('path', '.*')
+    ->name('media.public');
+
+Route::get('/politica-de-privacidade', function () {
+    return Inertia::render('Legal/PrivacyPolicy');
+})->name('legal.privacy');
+
+Route::get('/politica-de-cookies', function () {
+    return Inertia::render('Legal/CookiePolicy');
+})->name('legal.cookies');
+
+Route::get('/termos-e-condicoes', function () {
+    return Inertia::render('Legal/TermsAndConditions');
+})->name('legal.terms');
+
+Route::post('/legal/cookie-consent', [CookieConsentController::class, 'store'])
+    ->middleware('throttle:30,1')
+    ->name('legal.cookie-consent.store');
 
 Route::get('/', function () {
     $today = Carbon::today()->toDateString();
@@ -123,6 +146,52 @@ Route::get('/eventos', function () {
     ]);
 })->name('events.index');
 
+Route::get('/hoteis-parceiros', function () {
+    $hotels = Hotel::query()
+        ->with(['event:id,name,location,start_date,end_date,is_active'])
+        ->withCount([
+            'rates as active_rates_count' => fn ($query) => $query->where('is_active', true),
+        ])
+        ->withMin([
+            'rates as min_sale_price' => fn ($query) => $query->where('is_active', true),
+        ], 'sale_price')
+        ->where('is_active', true)
+        ->orderByDesc('id')
+        ->get()
+        ->map(fn (Hotel $hotel) => [
+            'id' => $hotel->id,
+            'event_id' => $hotel->event_id,
+            'event_name' => (string) $hotel->event?->name,
+            'event_location' => $hotel->event?->location,
+            'event_start_date' => $hotel->event?->start_date?->toDateString(),
+            'event_end_date' => $hotel->event?->end_date?->toDateString(),
+            'name' => $hotel->name,
+            'description' => $hotel->description,
+            'address' => $hotel->address,
+            'supplier_name' => $hotel->supplier_name,
+            'website_url' => $hotel->website_url,
+            'cover_image_url' => collect($hotel->gallery_images ?? [])
+                ->filter(fn ($path) => is_string($path) && $path !== '')
+                ->map(fn (string $path) => MediaUrl::fromStoragePath($path))
+                ->filter(fn ($url) => is_string($url) && $url !== '')
+                ->first(),
+            'images' => collect($hotel->gallery_images ?? [])
+                ->filter(fn ($path) => is_string($path) && $path !== '')
+                ->map(fn (string $path) => MediaUrl::fromStoragePath($path))
+                ->filter(fn ($url) => is_string($url) && $url !== '')
+                ->values()
+                ->all(),
+            'active_rates_count' => (int) ($hotel->active_rates_count ?? 0),
+            'min_sale_price' => $hotel->min_sale_price !== null ? (float) $hotel->min_sale_price : null,
+            'currency' => 'EUR',
+        ])
+        ->values();
+
+    return Inertia::render('Hoteis', [
+        'hotels' => $hotels,
+    ]);
+})->name('hotels.index');
+
 Route::get('/contactos', function () {
     return Inertia::render('Contactos');
 })->name('contacts.index');
@@ -151,9 +220,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/checkout/payment', [BookingController::class, 'payment'])->name('checkout.payment');
         Route::post('/checkout/payment-intent', [BookingController::class, 'createPaymentIntent'])->name('checkout.payment-intent');
         Route::post('/checkout', [BookingController::class, 'store'])->name('checkout.store');
+        Route::get('/dashboard/faturas-recibos', [BookingDashboardController::class, 'billingDocuments'])->name('dashboard.billing.index');
         Route::get('/dashboard/bookings', [BookingDashboardController::class, 'index'])->name('dashboard.bookings.index');
         Route::get('/dashboard/bookings/{booking}', [BookingDashboardController::class, 'show'])->name('dashboard.bookings.show');
         Route::get('/dashboard/bookings/{booking}/payment', [BookingDashboardController::class, 'payment'])->name('dashboard.bookings.payment');
+        Route::get('/dashboard/bookings/{booking}/billing/{invoice}', [BookingDashboardController::class, 'downloadBillingDocument'])->name('dashboard.bookings.billing.download');
         Route::post('/dashboard/bookings/{booking}/payment/intent', [BookingDashboardController::class, 'paymentIntent'])->name('dashboard.bookings.payment.intent');
         Route::post('/dashboard/bookings/{booking}/payment/sync-stripe', [BookingDashboardController::class, 'syncStripePayment'])->name('dashboard.bookings.payment.sync-stripe');
         Route::post('/dashboard/bookings/{booking}/payment/confirm', [BookingDashboardController::class, 'confirmPayment'])->name('dashboard.bookings.payment.confirm');

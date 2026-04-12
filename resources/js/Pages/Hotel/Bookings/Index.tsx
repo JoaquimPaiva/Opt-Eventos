@@ -93,7 +93,7 @@ export default function HotelBookingsIndex({ bookings, filters }: HotelBookingsP
                         </form>
                     </div>
 
-                    <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+                    <div className="-mx-4 overflow-x-auto rounded-lg bg-white shadow-sm sm:mx-0">
                         <table className="w-full min-w-[820px] divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr>

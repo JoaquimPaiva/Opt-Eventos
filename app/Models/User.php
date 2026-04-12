@@ -28,6 +28,8 @@ class User extends Authenticatable
         'password',
         'role',
         'hotel_id',
+        'terms_accepted_at',
+        'privacy_accepted_at',
     ];
 
     /**
@@ -50,6 +52,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'terms_accepted_at' => 'datetime',
+            'privacy_accepted_at' => 'datetime',
         ];
     }
 

@@ -43,6 +43,19 @@ class HandleInertiaRequests extends Middleware
                 'enabled' => filled(config('services.web_push.public_key')) && filled(config('services.web_push.private_key')) && filled(config('services.web_push.subject')),
                 'public_key' => config('services.web_push.public_key'),
             ],
+            'legal' => [
+                'version' => config('legal.version'),
+                'operator' => config('legal.operator'),
+                'privacy' => [
+                    'contact_email' => config('legal.privacy.contact_email'),
+                    'retention' => config('legal.privacy.retention'),
+                    'processors' => config('legal.privacy.processors'),
+                    'international_transfers' => config('legal.privacy.international_transfers'),
+                ],
+                'ral' => config('legal.ral'),
+                'complaints_book_url' => config('legal.complaints_book_url'),
+                'odr_discontinued_on' => config('legal.odr_discontinued_on'),
+            ],
             'notifications' => function () use ($request): array {
                 $user = $request->user();
                 if ($user === null) {

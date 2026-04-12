@@ -25,7 +25,8 @@ class StoreRateRequest extends FormRequest
                 'exists:hotels,id',
                 Rule::unique('rates', 'hotel_id')->where(fn ($query) => $query
                     ->where('room_type_id', $this->integer('room_type_id'))
-                    ->where('meal_plan_id', $this->integer('meal_plan_id'))),
+                    ->where('meal_plan_id', $this->integer('meal_plan_id'))
+                    ->where('cancellation_policy', (string) $this->input('cancellation_policy'))),
             ],
             'room_type_id' => ['required', 'integer', 'exists:room_types,id'],
             'meal_plan_id' => ['required', 'integer', 'exists:meal_plans,id'],

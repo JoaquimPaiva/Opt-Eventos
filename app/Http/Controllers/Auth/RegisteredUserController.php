@@ -41,6 +41,8 @@ class RegisteredUserController extends Controller
             ],
             'nif' => 'nullable|string|max:20',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'accept_terms' => ['accepted'],
+            'accept_privacy' => ['accepted'],
         ]);
 
         $user = User::create([
@@ -49,6 +51,8 @@ class RegisteredUserController extends Controller
             'nationality' => $request->nationality,
             'nif' => filled($request->nif) ? $request->nif : null,
             'password' => Hash::make($request->password),
+            'terms_accepted_at' => now(),
+            'privacy_accepted_at' => now(),
         ]);
 
         event(new Registered($user));

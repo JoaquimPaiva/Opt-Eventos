@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 *.log
 .DS_Store
 .env
@@ -23,6 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
-=======
 *.sqlite*
->>>>>>> b2fe3f6 (feat: app login com firebase e onboarding)
+*.zip
+
+# Local scratch/debug files
+er = AppModelsUser::first();
+er->notify(new AppNotificationsBookingCreatedNotification($booking));
