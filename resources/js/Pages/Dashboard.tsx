@@ -27,7 +27,7 @@ export default function Dashboard() {
             style: 'bg-emerald-600 text-white hover:bg-emerald-500',
         },
         {
-            title: 'Faturas e recibos',
+            title: 'Faturas',
             description: 'Consulta e descarrega todos os documentos num único local.',
             href: route('dashboard.billing.index'),
             style: 'bg-amber-500 text-slate-950 hover:bg-amber-400',

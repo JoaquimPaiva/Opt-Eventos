@@ -46,7 +46,7 @@ export function PublicHoteisHeroSection({ hotels }: PublicHoteisHeroSectionProps
                 <p className="inline-flex rounded-full border border-white/35 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.17em] text-white/90">
                     Rede de parcerias
                 </p>
-                <h1 className="mt-3 max-w-3xl text-2xl font-black leading-tight sm:text-4xl">
+                <h1 className="mt-3 max-w-3xl text-1xl font-black leading-tight sm:text-4xl">
                     Conhece todos os hotéis parceiros do projeto OptEventos.
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm text-slate-100/95 sm:text-base">

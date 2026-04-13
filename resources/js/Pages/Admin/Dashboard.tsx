@@ -111,6 +111,12 @@ export default function AdminDashboard({
                                 Gerir eventos
                             </Link>
                             <Link
+                                href={route("admin.event-logos.index")}
+                                className="rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500"
+                            >
+                                Gerir logos
+                            </Link>
+                            <Link
                                 href={route("admin.hotels.index")}
                                 className="rounded-md bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500"
                             >

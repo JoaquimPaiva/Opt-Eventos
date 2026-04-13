@@ -9,6 +9,7 @@ use App\Models\Rate;
 use App\Models\RoomType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class PartnerCatalogSeeder extends Seeder
 {
@@ -35,6 +36,7 @@ class PartnerCatalogSeeder extends Seeder
                 'name' => 'Lisbon Business Summit 2026',
                 'slug' => 'lisbon-business-summit-2026',
                 'description' => 'Conferência internacional focada em negócios e inovação.',
+                'cover_image' => $this->eventCoverImage('lisbon-business-summit-2026'),
                 'location' => 'Lisboa, Portugal',
                 'latitude' => 38.7223,
                 'longitude' => -9.1393,
@@ -48,6 +50,7 @@ class PartnerCatalogSeeder extends Seeder
                 'name' => 'Porto Wine & Culture Week',
                 'slug' => 'porto-wine-culture-week-2026',
                 'description' => 'Experiência cultural com provas, gastronomia e programação urbana.',
+                'cover_image' => $this->eventCoverImage('porto-wine-culture-week-2026'),
                 'location' => 'Porto, Portugal',
                 'latitude' => 41.1579,
                 'longitude' => -8.6291,
@@ -61,6 +64,7 @@ class PartnerCatalogSeeder extends Seeder
                 'name' => 'Algarve Sports Festival',
                 'slug' => 'algarve-sports-festival-2026',
                 'description' => 'Festival desportivo com várias modalidades e atividades de praia.',
+                'cover_image' => $this->eventCoverImage('algarve-sports-festival-2026'),
                 'location' => 'Faro, Portugal',
                 'latitude' => 37.0194,
                 'longitude' => -7.9304,
@@ -74,6 +78,7 @@ class PartnerCatalogSeeder extends Seeder
                 'name' => 'Madrid Creative Expo',
                 'slug' => 'madrid-creative-expo-2026',
                 'description' => 'Evento criativo com foco em design, media e experiências digitais.',
+                'cover_image' => $this->eventCoverImage('madrid-creative-expo-2026'),
                 'location' => 'Madrid, Espanha',
                 'latitude' => 40.4168,
                 'longitude' => -3.7038,
@@ -87,6 +92,7 @@ class PartnerCatalogSeeder extends Seeder
                 'name' => 'Barcelona Tech Connect',
                 'slug' => 'barcelona-tech-connect-2026',
                 'description' => 'Encontro de tecnologia com networking empresarial e startups.',
+                'cover_image' => $this->eventCoverImage('barcelona-tech-connect-2026'),
                 'location' => 'Barcelona, Espanha',
                 'latitude' => 41.3874,
                 'longitude' => 2.1686,
@@ -100,6 +106,7 @@ class PartnerCatalogSeeder extends Seeder
                 'name' => 'Milan Design Forum',
                 'slug' => 'milan-design-forum-2026',
                 'description' => 'Fórum internacional de design com exposições e talks premium.',
+                'cover_image' => $this->eventCoverImage('milan-design-forum-2026'),
                 'location' => 'Milão, Itália',
                 'latitude' => 45.4642,
                 'longitude' => 9.1900,
@@ -160,6 +167,7 @@ class PartnerCatalogSeeder extends Seeder
                         'longitude' => (float) $event->longitude - (($hotelOffset + 1) * 0.0035),
                         'supplier_name' => 'OptEventos Partner Network',
                         'website_url' => 'https://opteventos.pt',
+                        'gallery_images' => $this->hotelGalleryImages($eventData['slug'], $hotelName),
                         'is_active' => true,
                     ]
                 );
@@ -226,5 +234,29 @@ class PartnerCatalogSeeder extends Seeder
                     ->delete();
             }
         }
+    }
+
+    private function eventCoverImage(string $eventSlug): string
+    {
+        return sprintf(
+            'https://picsum.photos/seed/%s/1600/900',
+            rawurlencode('opteventos-event-'.$eventSlug)
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function hotelGalleryImages(string $eventSlug, string $hotelName): array
+    {
+        $hotelSeed = Str::slug($hotelName).'-'.substr(md5($hotelName), 0, 8);
+
+        return collect(range(1, 5))
+            ->map(fn (int $index) => sprintf(
+                'https://picsum.photos/seed/%s/1600/900',
+                rawurlencode("opteventos-hotel-{$eventSlug}-{$hotelSeed}-{$index}")
+            ))
+            ->values()
+            ->all();
     }
 }

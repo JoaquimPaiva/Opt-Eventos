@@ -4,6 +4,7 @@ use App\Http\Controllers\Booking\BookingController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\BookingController as AdminBookingController;
 use App\Http\Controllers\Admin\EventController;
+use App\Http\Controllers\Admin\EventLogoController;
 use App\Http\Controllers\Admin\HotelController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Admin\RateController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Webhooks\PaymentWebhookController;
 use App\Models\Event;
+use App\Models\EventLogo;
 use App\Models\Hotel;
 use App\Models\Rate;
 use App\Support\MediaUrl;
@@ -102,6 +104,19 @@ Route::get('/', function () {
         ])
         ->values();
 
+    $managedLogos = EventLogo::query()
+        ->where('is_active', true)
+        ->orderBy('display_order')
+        ->orderBy('id')
+        ->get()
+        ->map(fn (EventLogo $logo) => [
+            'id' => $logo->id,
+            'name' => $logo->name,
+            'image' => MediaUrl::fromStoragePath($logo->image_path),
+        ])
+        ->filter(fn (array $logo) => $logo['image'] !== null)
+        ->values();
+
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
@@ -109,6 +124,7 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
         'featured_event_ids' => $featuredEventIds,
         'rates' => $rates,
+        'logo_strip' => $managedLogos,
     ]);
 });
 
@@ -241,6 +257,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('/admin', AdminDashboardController::class)->name('admin.dashboard');
+    Route::resource('/admin/event-logos', EventLogoController::class)->names('admin.event-logos')->except(['show', 'create', 'edit']);
     Route::resource('/admin/events', EventController::class)->names('admin.events')->except('show');
     Route::patch('/admin/events/{event}/featured', [EventController::class, 'toggleFeatured'])->name('admin.events.toggle-featured');
     Route::resource('/admin/hotels', HotelController::class)->names('admin.hotels')->except('show');

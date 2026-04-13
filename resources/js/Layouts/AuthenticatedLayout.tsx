@@ -673,12 +673,13 @@ export default function Authenticated({
                 </div>
 
                 <div
-                    className={
-                        (showingNavigationDropdown ? "block" : "hidden") +
-                        " md:hidden"
-                    }
+                    className={`absolute w-full bg-white transform transition-all duration-300 ease-out md:hidden min-h-[100dvh] ${
+                        showingNavigationDropdown
+                            ? "translate-x-0 opacity-100 pointer-events-auto"
+                            : "-translate-x-24 opacity-0 pointer-events-none"
+                    }`}
                 >
-                    <div className="space-y-1 pb-3 pt-2">
+                    <div className="space-y-1 pb-3 pt-0">
                         {user.role !== "HOTEL" ? (
                             <>
                                 <ResponsiveNavLink

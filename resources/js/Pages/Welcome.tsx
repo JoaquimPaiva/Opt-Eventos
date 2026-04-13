@@ -16,6 +16,7 @@ import {
     PublicWelcomeTickerSection,
     PublicWelcomeTransparencySection,
     PublicWelcomeVisualSection,
+    PublicWelcomeLogosSection,
 } from "@/Components/Publico/WelcomeSections";
 import { assetUrl } from "@/lib/assetUrl";
 import { PageProps } from "@/types";
@@ -40,12 +41,19 @@ interface RateOption {
     max_guests: number;
 }
 
+interface LogoStripItem {
+    id: number;
+    name: string;
+    image: string | null;
+}
+
 interface WelcomeProps {
     [key: string]: unknown;
     laravelVersion: string;
     phpVersion: string;
     featured_event_ids: number[];
     rates: RateOption[];
+    logo_strip?: LogoStripItem[];
 }
 
 function isDateWithinWindow(
@@ -73,6 +81,7 @@ export default function Welcome({
     phpVersion,
     rates,
     featured_event_ids,
+    logo_strip = [],
 }: PageProps<WelcomeProps>) {
     const [checkIn, setCheckIn] = useState("");
     const [checkOut, setCheckOut] = useState("");
@@ -186,7 +195,7 @@ export default function Welcome({
             }
         >();
 
-        availableRates.forEach((rate) => {
+        rates.forEach((rate) => {
             const existing = map.get(rate.event_id);
             if (!existing) {
                 map.set(rate.event_id, {
@@ -206,30 +215,89 @@ export default function Welcome({
         const allEvents = Array.from(map.values());
         const hasAnyFeatured = allEvents.some((event) => event.isFeatured);
         if (hasAnyFeatured) {
-            return allEvents
-                .sort(
-                    (a, b) =>
-                        Number(b.isFeatured) - Number(a.isFeatured) ||
-                        b.offers - a.offers,
-                )
-                .slice(0, 4);
+            return allEvents.sort(
+                (a, b) =>
+                    Number(b.isFeatured) - Number(a.isFeatured) ||
+                    b.offers - a.offers,
+            );
         }
 
-        return allEvents.sort((a, b) => b.offers - a.offers).slice(0, 4);
-    }, [availableRates, featuredSet]);
+        return allEvents.sort((a, b) => b.offers - a.offers);
+    }, [rates, featuredSet]);
+
+    const logoStripItems = useMemo(
+        () => {
+            if (logo_strip.length > 0) {
+                return logo_strip;
+            }
+
+            return destinationCards.map((event) => ({
+                id: event.id,
+                name: event.name,
+                image: event.image,
+            }));
+        },
+        [destinationCards, logo_strip],
+    );
 
     const hotelCards = useMemo(() => {
-        return availableRates.slice(0, 8).map((rate) => ({
-            id: rate.id,
-            name: rate.hotel_name,
-            event: rate.event_name,
-            image: rate.hotel_images[0] ?? null,
-            price: rate.sale_price,
-            currency: rate.currency,
-            room: rate.room_type,
-            meal: rate.meal_plan,
-        }));
-    }, [availableRates]);
+        const uniqueHotels = new Map<
+            number,
+            {
+                id: number;
+                name: string;
+                event: string;
+                image: string | null;
+                price: number;
+                currency: string;
+                room: string;
+                meal: string;
+                offers: number;
+            }
+        >();
+
+        rates.forEach((rate) => {
+            const existing = uniqueHotels.get(rate.hotel_id);
+            const image = rate.hotel_images[0] ?? null;
+
+            if (!existing) {
+                uniqueHotels.set(rate.hotel_id, {
+                    id: rate.hotel_id,
+                    name: rate.hotel_name,
+                    event: rate.event_name,
+                    image,
+                    price: rate.sale_price,
+                    currency: rate.currency,
+                    room: rate.room_type,
+                    meal: rate.meal_plan,
+                    offers: 1,
+                });
+                return;
+            }
+
+            existing.offers += 1;
+
+            if (existing.image === null && image !== null) {
+                existing.image = image;
+            }
+
+            if (rate.sale_price < existing.price) {
+                existing.price = rate.sale_price;
+                existing.currency = rate.currency;
+                existing.room = rate.room_type;
+                existing.meal = rate.meal_plan;
+            }
+        });
+
+        return Array.from(uniqueHotels.values())
+            .sort(
+                (a, b) =>
+                    b.offers - a.offers ||
+                    a.price - b.price ||
+                    a.name.localeCompare(b.name),
+            )
+            .map(({ offers: _offers, ...hotelCard }) => hotelCard);
+    }, [rates]);
 
     const howItWorksSteps = [
         {
@@ -272,11 +340,11 @@ export default function Welcome({
         },
         {
             title: "Para hotéis parceiros",
-            text: "Recebe reservas qualificadas para eventos e gere operação com visibilidade sobre entradas e estadias.",
+            text: "Queres fazer parte desta iniciativa? Contacta-nos para integrar o teu hotel e alcançar mais visitantes.",
         },
         {
-            title: "Para equipas de gestão",
-            text: "Controla catálogo, tarifas, pagamentos e relatórios de forma estruturada e escalável.",
+            title: "Para organizadores de eventos",
+            text: "Tens um evento e queres promove-lo? Fala connosco para criar experiências completas.",
         },
     ];
 
@@ -302,7 +370,7 @@ export default function Welcome({
             answer: "Depende da política da tarifa escolhida. As condições são apresentadas antes da confirmação.",
         },
         {
-            question: "Onde encontro faturas e recibos?",
+            question: "Onde encontro as minhas faturas?",
             answer: "Depois da emissão, a fatura fica disponível na área de cliente.",
         },
         {
@@ -351,6 +419,7 @@ export default function Welcome({
                         checkOut={checkOut}
                         setCheckOut={setCheckOut}
                     />
+                    <PublicWelcomeLogosSection logos={logoStripItems} />
 
                     <PublicWelcomeAlertsSection
                         checkIn={checkIn}

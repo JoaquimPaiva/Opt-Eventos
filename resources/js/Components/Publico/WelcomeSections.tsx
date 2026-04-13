@@ -14,6 +14,12 @@ export interface WelcomeDestinationCard {
     isFeatured: boolean;
 }
 
+export interface WelcomeLogoItem {
+    id: number;
+    name: string;
+    image: string | null;
+}
+
 export interface WelcomeHotelCard {
     id: number;
     name: string;
@@ -80,8 +86,8 @@ export function PublicWelcomeHeroSection({
     setCheckOut,
 }: WelcomeHeroSectionProps) {
     return (
-        <section id="hero" className="relative overflow-hidden bg-gradient-to-b from-sky-50 to-white pb-10 sm:pb-24">
-            <div className="relative mx-auto w-full overflow-hidden border-b border-slate-200/70 bg-slate-900 shadow-[0_35px_80px_-50px_rgba(15,23,42,0.85)] rounded-b-[5%] sm:rounded-b-[15%]">
+        <section id="hero" className="relative overflow-hidden bg-gradient-to-b from-sky-50 to-sky pb-10 sm:pb-24">
+            <div className="relative mx-auto w-full overflow-hidden border-b border-slate-200/70 bg-slate-900 shadow-[0_35px_80px_-50px_rgba(15,23,42,0.85)] rounded-b-[10%] sm:rounded-b-[15%]">
                 {heroImage ? (
                     <img
                         src={heroImage}
@@ -211,6 +217,73 @@ export function PublicWelcomeHeroSection({
     );
 }
 
+interface WelcomeLogosSectionProps {
+    logos: WelcomeLogoItem[];
+}
+
+export function PublicWelcomeLogosSection({ logos }: WelcomeLogosSectionProps) {
+    const stripItems = logos.length > 0 ? [...logos, ...logos] : [];
+    const animationDuration = Math.max(logos.length * 5, 22);
+
+    return (
+        <section className="mx-auto mb-12 max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="overflow-hidden py-4">
+                <div className="mb-2 px-4 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:text-left">
+                    Eventos em parceria
+                </div>
+
+                {logos.length > 0 ? (
+                    <div className="relative">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-sky to-transparent" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-sky to-transparent" />
+
+                        <div
+                            className="flex w-max items-center gap-3 px-3 [animation:welcome-logos-marquee_linear_infinite] hover:[animation-play-state:paused] motion-reduce:animate-none"
+                            style={{ animationDuration: `${animationDuration}s` }}
+                        >
+                            {stripItems.map((logo, index) => (
+                                <Link
+                                    key={`${logo.id}-${index}`}
+                                    href={route("events.index")}
+                                    className="group flex h-24 w-24 flex-col justify-center items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-700 transition hover:border-slate-300 hover:bg-white"
+                                    aria-hidden={index >= logos.length}
+                                >
+                                    <span className="inline-flex h-16 w-16 items-center justify-center overflow-hidden text-[11px] font-bold text-slate-700">
+                                        {logo.image ? (
+                                            <img
+                                                src={logo.image}
+                                                alt={logo.name}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            logo.name
+                                                .split(" ")
+                                                .slice(0, 2)
+                                                .map((part) => part.charAt(0))
+                                                .join("")
+                                                .toUpperCase()
+                                        )}
+                                    </span>
+                                    <span className="hidden text-xs font-semibold sm:text-sm">
+                                        {logo.name}
+                                    </span>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="px-4 text-sm text-slate-500">
+                        Ainda não existem eventos para apresentar.
+                    </div>
+                )}
+            </div>
+            <style>
+                {`@keyframes welcome-logos-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}
+            </style>
+        </section>
+    );
+}
+
 interface WelcomeAlertsSectionProps {
     checkIn: string;
     checkOut: string;
@@ -316,6 +389,13 @@ interface WelcomeDestinationsSectionProps {
 export function PublicWelcomeDestinationsSection({
     destinationCards,
 }: WelcomeDestinationsSectionProps) {
+    const carouselCards =
+        destinationCards.length > 0
+            ? [...destinationCards, ...destinationCards]
+            : [];
+
+    const animationDuration = Math.max(destinationCards.length * 7, 28);
+
     return (
         <section id="eventos-destaque" className="mx-auto mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionHeader
@@ -323,45 +403,57 @@ export function PublicWelcomeDestinationsSection({
                 title="Eventos em destaque"
                 subtitle="Descobre experiências com estadias disponíveis através da nossa rede de hotéis parceiros."
             />
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="relative">
                 {destinationCards.length > 0 ? (
-                    destinationCards.map((destination) => (
-                        <article
-                            key={destination.id}
-                            className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                    <div className="relative overflow-hidden rounded-3xl">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-slate-100 to-transparent" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-slate-100 to-transparent" />
+
+                        <div
+                            className="flex w-max gap-4 py-1 [animation:welcome-events-marquee_linear_infinite] hover:[animation-play-state:paused] motion-reduce:animate-none"
+                            style={{ animationDuration: `${animationDuration}s` }}
                         >
-                            <div className="relative">
-                                {destination.image ? (
-                                    <img
-                                        src={destination.image}
-                                        alt={destination.name}
-                                        className="h-44 w-full object-cover transition duration-500 group-hover:scale-105"
-                                    />
-                                ) : (
-                                    <div className="h-44 bg-slate-200" />
-                                )}
-                                {destination.isFeatured ? (
-                                    <span className="absolute left-3 top-3 rounded-full bg-[#0f3a8a] px-2.5 py-1 text-[11px] font-semibold text-white">
-                                        Destaque
-                                    </span>
-                                ) : null}
-                            </div>
-                            <div className="space-y-2 p-4">
-                                <p className="text-sm font-bold text-slate-900">
-                                    {destination.name}
-                                </p>
-                                <p className="text-xs text-slate-600">
-                                    {destination.offers} oferta(s) disponíveis
-                                </p>
-                                <Link
-                                    href={route("events.index")}
-                                    className="inline-flex rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                            {carouselCards.map((destination, index) => (
+                                <article
+                                    key={`${destination.id}-${index}`}
+                                    className="group w-[280px] flex-none overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:w-[320px]"
+                                    aria-hidden={index >= destinationCards.length}
                                 >
-                                    Ver opções
-                                </Link>
-                            </div>
-                        </article>
-                    ))
+                                    <div className="relative">
+                                        {destination.image ? (
+                                            <img
+                                                src={destination.image}
+                                                alt={destination.name}
+                                                className="h-44 w-full object-cover transition duration-500 group-hover:scale-105"
+                                            />
+                                        ) : (
+                                            <div className="h-44 bg-slate-200" />
+                                        )}
+                                        {destination.isFeatured ? (
+                                            <span className="absolute left-3 top-3 rounded-full bg-[#0f3a8a] px-2.5 py-1 text-[11px] font-semibold text-white">
+                                                Destaque
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    <div className="space-y-2 p-4">
+                                        <p className="text-sm font-bold text-slate-900">
+                                            {destination.name}
+                                        </p>
+                                        <p className="text-xs text-slate-600">
+                                            {destination.offers} oferta(s)
+                                            disponíveis
+                                        </p>
+                                        <Link
+                                            href={route("events.index")}
+                                            className="inline-flex rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                                        >
+                                            Ver opções
+                                        </Link>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    </div>
                 ) : (
                     <EmptyState
                         message="Neste momento ainda não existem eventos em destaque."
@@ -370,6 +462,9 @@ export function PublicWelcomeDestinationsSection({
                     />
                 )}
             </div>
+            <style>
+                {`@keyframes welcome-events-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}
+            </style>
         </section>
     );
 }
@@ -381,6 +476,9 @@ interface WelcomeHotelsSectionProps {
 export function PublicWelcomeHotelsSection({
     hotelCards,
 }: WelcomeHotelsSectionProps) {
+    const carouselCards = hotelCards.length > 0 ? [...hotelCards, ...hotelCards] : [];
+    const animationDuration = Math.max(hotelCards.length * 6, 26);
+
     return (
         <section id="hoteis-premium" className="mx-auto mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionHeader
@@ -388,52 +486,66 @@ export function PublicWelcomeHotelsSection({
                 title="Hotéis premium para cada evento"
                 subtitle="Compara opções selecionadas para cada experiência, com disponibilidade, regime e preço visíveis desde o primeiro momento."
             />
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="relative">
                 {hotelCards.length > 0 ? (
-                    hotelCards.map((hotel) => (
-                        <article
-                            key={hotel.id}
-                            className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                    <div className="relative overflow-hidden rounded-3xl">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-slate-100 to-transparent" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-slate-100 to-transparent" />
+
+                        <div
+                            className="flex w-max gap-4 py-1 [animation:welcome-hotels-marquee_linear_infinite] hover:[animation-play-state:paused] motion-reduce:animate-none"
+                            style={{ animationDuration: `${animationDuration}s` }}
                         >
-                            {hotel.image ? (
-                                <img
-                                    src={hotel.image}
-                                    alt={hotel.name}
-                                    className="h-48 w-full object-cover transition duration-500 group-hover:scale-105"
-                                />
-                            ) : (
-                                <div className="h-48 bg-slate-200" />
-                            )}
-                            <div className="space-y-2 p-4">
-                                <p className="text-base font-bold text-slate-900">
-                                    {hotel.name}
-                                </p>
-                                <p className="text-sm text-slate-600">{hotel.event}</p>
-                                <p className="text-xs text-slate-600">
-                                    {hotel.room} • {hotel.meal}
-                                </p>
-                                <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-                                    <span className="rounded-full bg-sky-100 px-2.5 py-1 text-sky-700">
-                                        Parceiro oficial
-                                    </span>
-                                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">
-                                        Disponível
-                                    </span>
-                                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-700">
-                                        Flexível
-                                    </span>
-                                </div>
-                                <p className="pt-1 text-sm font-semibold text-slate-900">
-                                    Desde {hotel.price.toFixed(2)} {hotel.currency}
-                                    /noite
-                                </p>
-                            </div>
-                        </article>
-                    ))
+                            {carouselCards.map((hotel, index) => (
+                                <article
+                                    key={`${hotel.id}-${index}`}
+                                    className="group w-[280px] flex-none overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:w-[320px]"
+                                    aria-hidden={index >= hotelCards.length}
+                                >
+                                    {hotel.image ? (
+                                        <img
+                                            src={hotel.image}
+                                            alt={hotel.name}
+                                            className="h-48 w-full object-cover transition duration-500 group-hover:scale-105"
+                                        />
+                                    ) : (
+                                        <div className="h-48 bg-slate-200" />
+                                    )}
+                                    <div className="space-y-2 p-4">
+                                        <p className="text-base font-bold text-slate-900">
+                                            {hotel.name}
+                                        </p>
+                                        <p className="text-sm text-slate-600">{hotel.event}</p>
+                                        <p className="text-xs text-slate-600">
+                                            {hotel.room} • {hotel.meal}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+                                            <span className="rounded-full bg-sky-100 px-2.5 py-1 text-sky-700">
+                                                Parceiro oficial
+                                            </span>
+                                            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">
+                                                Disponível
+                                            </span>
+                                            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-700">
+                                                Flexível
+                                            </span>
+                                        </div>
+                                        <p className="pt-1 text-sm font-semibold text-slate-900">
+                                            Desde {hotel.price.toFixed(2)} {hotel.currency}
+                                            /noite
+                                        </p>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    </div>
                 ) : (
                     <EmptyState message="Ainda não existem hotéis em destaque para mostrar." />
                 )}
             </div>
+            <style>
+                {`@keyframes welcome-hotels-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}
+            </style>
         </section>
     );
 }
@@ -482,7 +594,7 @@ export function PublicWelcomeVisualSection({
     trustHighlights,
 }: WelcomeVisualSectionProps) {
     return (
-        <section className="mx-auto mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section className="hidden mx-auto mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionHeader
                 eyebrow="Confiança"
                 title="Uma plataforma pensada para reservar com mais confiança"
@@ -596,7 +708,7 @@ export function PublicWelcomeAudienceSection({
 
 export function PublicWelcomeTransparencySection() {
     return (
-        <section className="mx-auto mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section className="hidden mx-auto mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionHeader
                 eyebrow="Transparência"
                 title="Transparência em cada etapa da reserva"

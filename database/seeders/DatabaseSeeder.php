@@ -62,6 +62,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Lisbon Summer Music Week',
                 'slug' => 'lisbon-summer-music-week',
                 'description' => 'Major music event in Lisbon with partner hotel deals.',
+                'cover_image' => $this->eventCoverImage('lisbon-summer-music-week'),
                 'location' => 'Lisbon, Portugal',
                 'latitude' => 38.7223,
                 'longitude' => -9.1393,
@@ -75,6 +76,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Barcelona Tech Expo',
                 'slug' => 'barcelona-tech-expo',
                 'description' => 'Annual technology and innovation expo.',
+                'cover_image' => $this->eventCoverImage('barcelona-tech-expo'),
                 'location' => 'Barcelona, Spain',
                 'latitude' => 41.3874,
                 'longitude' => 2.1686,
@@ -88,6 +90,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Milan Design Fair',
                 'slug' => 'milan-design-fair',
                 'description' => 'Design fair with curated accommodation packages.',
+                'cover_image' => $this->eventCoverImage('milan-design-fair'),
                 'location' => 'Milan, Italy',
                 'latitude' => 45.4642,
                 'longitude' => 9.1900,
@@ -107,6 +110,10 @@ class DatabaseSeeder extends Seeder
             ]);
 
             foreach ($hotels as $hotel) {
+                $hotel->update([
+                    'gallery_images' => $this->hotelGalleryImages($event->slug, $hotel->name),
+                ]);
+
                 foreach ($roomTypes as $roomType) {
                     foreach ($mealPlans as $mealPlan) {
                         $cost = fake()->numberBetween(60, 180);
@@ -184,5 +191,29 @@ class DatabaseSeeder extends Seeder
                 'paid_at' => null,
             ]);
         }
+    }
+
+    private function eventCoverImage(string $eventSlug): string
+    {
+        return sprintf(
+            'https://picsum.photos/seed/%s/1600/900',
+            rawurlencode('opteventos-event-'.$eventSlug)
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function hotelGalleryImages(string $eventSlug, string $hotelName): array
+    {
+        $hotelSeed = Str::slug($hotelName).'-'.substr(md5($hotelName), 0, 8);
+
+        return collect(range(1, 5))
+            ->map(fn (int $index) => sprintf(
+                'https://picsum.photos/seed/%s/1600/900',
+                rawurlencode("opteventos-hotel-{$eventSlug}-{$hotelSeed}-{$index}")
+            ))
+            ->values()
+            ->all();
     }
 }

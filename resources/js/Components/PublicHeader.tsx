@@ -11,6 +11,7 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
     const pageProps = usePage<PageProps>().props;
     const user = pageProps.auth?.user;
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isMobileMenuEntering, setIsMobileMenuEntering] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const isHome = active === "home";
     const abrirMenuIcon = (
@@ -68,6 +69,19 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
         return () => window.removeEventListener("scroll", onScroll);
     }, []);
 
+    useEffect(() => {
+        if (!isMobileMenuOpen) {
+            setIsMobileMenuEntering(false);
+            return;
+        }
+
+        const animationFrame = window.requestAnimationFrame(() => {
+            setIsMobileMenuEntering(true);
+        });
+
+        return () => window.cancelAnimationFrame(animationFrame);
+    }, [isMobileMenuOpen]);
+
     const desktopLinkClass = (isActive: boolean): string => {
         const atHeroTop = isHome && !isScrolled;
 
@@ -82,8 +96,8 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
 
     const mobileLinkClass = (isActive: boolean): string =>
         isActive
-            ? "rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
-            : "rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700";
+            ? "line-through flex flex-col align-center justify-center h-20 bg-slate-900 px-12 py-2 text-sm font-semibold text-slate-100"
+            : "flex flex-col justify-center rounded-lg h-20 px-7 py-2 text-sm font-semibold text-slate-700";
 
     return (
         <header
@@ -110,9 +124,31 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
                 <button
                     type="button"
                     onClick={() => setIsMobileMenuOpen((current) => !current)}
-                    className="rounded-lg transition border-slate-300 px-0 py-0 text-xs font-semibold md:hidden"
+                    className="relative rounded-lg md:hidden"
                 >
-                    {isMobileMenuOpen ? fecharMenuIcon : abrirMenuIcon}
+                    <div className="relative w-6 h-6">
+                        {/* Open (hamburger) */}
+                        <span
+                            className={`absolute inset-0 transition-all duration-300 ease-out transform ${
+                                isMobileMenuOpen
+                                    ? "opacity-0 scale-75 rotate-90"
+                                    : "opacity-100 scale-100 rotate-0"
+                            }`}
+                        >
+                            {abrirMenuIcon}
+                        </span>
+
+                        {/* Close */}
+                        <span
+                            className={`absolute inset-0 transition-all duration-300 ease-out transform ${
+                                isMobileMenuOpen
+                                    ? "opacity-100 scale-100 rotate-0"
+                                    : "opacity-0 scale-75 -rotate-90"
+                            }`}
+                        >
+                            {fecharMenuIcon}
+                        </span>
+                    </div>
                 </button>
 
                 <nav
@@ -229,30 +265,40 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
             </div>
 
             {isMobileMenuOpen ? (
-                <div className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
-                    <div className="grid gap-2">
-                        <Link
-                            href="/"
-                            className={mobileLinkClass(active === "home")}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            Home
-                        </Link>
-                        <Link
-                            href={route("events.index")}
-                            className={mobileLinkClass(active === "events")}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            Eventos
-                        </Link>
-                        <Link
-                            href={route("hotels.index")}
-                            className={mobileLinkClass(active === "hotels")}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            Hotéis
-                        </Link>
-                        {/* <Link
+                <div
+                    className={`absolute w-full min-h-[100dvh] border-t border-slate-200 bg-[#f2f6f9] px-0 py-0 md:hidden transform transition-all duration-300 ease-out ${
+                        isMobileMenuEntering
+                            ? "translate-x-0 opacity-100"
+                            : "-translate-x-24 opacity-0"
+                    }`}
+                >
+                    <div className="flex flex-col justify-between min-h-[80dvh] gap-2">
+                        <div className="flex flex-col">
+                            <Link
+                                href="/"
+                                className={mobileLinkClass(active === "home")}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Home
+                            </Link>
+                            <hr />
+                            <Link
+                                href={route("events.index")}
+                                className={mobileLinkClass(active === "events")}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Eventos
+                            </Link>
+                            <hr />
+                            <Link
+                                href={route("hotels.index")}
+                                className={mobileLinkClass(active === "hotels")}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Hotéis
+                            </Link>
+                            <hr />
+                            {/* <Link
                             href="/#como-funciona"
                             className={mobileLinkClass(false)}
                             onClick={() => setIsMobileMenuOpen(false)}
@@ -266,57 +312,72 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
                         >
                             FAQ
                         </Link> */}
-                        <Link
-                            href={route("contacts.index")}
-                            className={mobileLinkClass(active === "contacts")}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            Contactos
-                        </Link>
-                        {user ? (
-                            <>
-                                <Link
-                                    href={route("dashboard")}
-                                    className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Painel
-                                </Link>
-                                <Link
-                                    href="/#search-reserva"
-                                    className="rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Reservar agora
-                                </Link>
-                                <Link
-                                    href={route("logout")}
-                                    method="post"
-                                    as="button"
-                                    className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Logout
-                                </Link>
-                            </>
-                        ) : (
-                            <>
-                                <Link
-                                    href={route("login")}
-                                    className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Entrar
-                                </Link>
-                                <Link
-                                    href="/#search-reserva"
-                                    className="rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Reservar agora
-                                </Link>
-                            </>
-                        )}
+                            <Link
+                                href={route("contacts.index")}
+                                className={mobileLinkClass(
+                                    active === "contacts",
+                                )}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Contactos
+                            </Link>
+                        </div>
+                        <div className="flex flex-col gap-2 px-7 py-2">
+                            {user ? (
+                                <>
+                                    <Link
+                                        href={route("dashboard")}
+                                        className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        Painel
+                                    </Link>
+                                    <Link
+                                        href="/#search-reserva"
+                                        className="rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        Reservar agora
+                                    </Link>
+                                    <Link
+                                        href={route("logout")}
+                                        method="post"
+                                        as="button"
+                                        className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        Logout
+                                    </Link>
+                                </>
+                            ) : (
+                                <>
+                                    <Link
+                                        href={route("login")}
+                                        className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        Entrar
+                                    </Link>
+                                    <Link
+                                        href="/#search-reserva"
+                                        className="rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        Reservar agora
+                                    </Link>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             ) : null}
